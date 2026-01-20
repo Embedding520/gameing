@@ -3,6 +3,9 @@ import { ObjectId } from 'mongodb'
 import { getDatabase } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')

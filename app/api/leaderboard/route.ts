@@ -6,6 +6,9 @@ import { getDatabase } from '@/lib/db'
 type LeaderboardType = 'totalScore' | 'coins' | 'level'
 type TimeRange = 'all' | 'week' | 'month'
 
+// 强制动态渲染
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
