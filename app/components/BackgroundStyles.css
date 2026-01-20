@@ -1,0 +1,16 @@
+/* 背景风格基础样式 */
+
+/* 风格1：经典紫色渐变 */
+body[data-bg-style="style1"] {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+}
+
+/* 风格2：星空风格 */
+body[data-bg-style="style2"] {
+  background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 50%, #2d1b4e 100%);
+}
+
+/* 风格3：海洋风格 */
+body[data-bg-style="style3"] {
+  background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4a90e2 100%);
+}
