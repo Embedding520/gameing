@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
             coins: amount,
             timestamp: new Date(),
           },
-        },
+        } as any,
       }
     )
 

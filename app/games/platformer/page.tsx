@@ -61,6 +61,8 @@ export default function PlatformerGame() {
     }
 
     const draw = () => {
+      if (!gameStateRef.current) return
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // 背景
@@ -90,7 +92,7 @@ export default function PlatformerGame() {
     }
 
     const update = () => {
-      if (isPaused) return
+      if (isPaused || !gameStateRef.current) return
 
       const state = gameStateRef.current
       const player = state.player
@@ -154,6 +156,7 @@ export default function PlatformerGame() {
 
     // 键盘事件处理
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!gameStateRef.current) return
       if (e.key === 'ArrowLeft') {
         gameStateRef.current.keys.left = true
         e.preventDefault()
@@ -169,6 +172,7 @@ export default function PlatformerGame() {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (!gameStateRef.current) return
       if (e.key === 'ArrowLeft') {
         gameStateRef.current.keys.left = false
       }

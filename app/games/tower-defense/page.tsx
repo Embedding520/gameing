@@ -201,13 +201,7 @@ export default function TowerDefenseGame() {
 
     gameLoop()
 
-    return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId)
-      }
-    }
-
-    const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const handleCanvasClick = (e: MouseEvent) => {
       if (isPaused || gameOver) return
       const rect = canvas.getBoundingClientRect()
       const x = e.clientX - rect.left
@@ -220,7 +214,12 @@ export default function TowerDefenseGame() {
     }
 
     canvas.addEventListener('click', handleCanvasClick)
-    return () => canvas.removeEventListener('click', handleCanvasClick)
+    return () => {
+      canvas.removeEventListener('click', handleCanvasClick)
+      if (animationId) {
+        cancelAnimationFrame(animationId)
+      }
+    }
   }, [gameOver, isPaused, lives, coins])
 
   const restart = () => {

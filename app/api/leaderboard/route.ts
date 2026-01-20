@@ -68,10 +68,6 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      userList.forEach((user: any) => {
-        userMap.set(user._id.toString(), user)
-      })
-
       const leaderboard = scores.map((score: any, index: number) => {
         const user = userMap.get(score.userId)
         return {

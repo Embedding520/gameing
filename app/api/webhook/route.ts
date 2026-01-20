@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
               timestamp: new Date(),
               paymentMethod: 'creem',
             },
-          },
+          } as any,
         }
       )
 

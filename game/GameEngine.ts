@@ -60,7 +60,7 @@ export default class GameEngine {
       coins: initialCoins,
       level: 1,
       targetScore: this.INITIAL_TARGET_SCORE,
-      timeLeft: this.LEVEL_TIME,
+      timeLeft: this.getLevelTime(1),
       hookAngle: 0,
       hookAngleDirection: 1, // 初始向右摆动
       hookLength: 0,

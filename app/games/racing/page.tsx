@@ -65,6 +65,7 @@ export default function RacingGame() {
       ctx.stroke()
 
       // 障碍物
+      if (!gameStateRef.current) return
       ctx.fillStyle = '#ff0000'
       gameStateRef.current.obstacles.forEach(obs => {
         ctx.fillRect(obs.x, obs.y, obs.width, 40)
@@ -76,7 +77,7 @@ export default function RacingGame() {
     }
 
     const update = () => {
-      if (isPaused) return
+      if (isPaused || !gameStateRef.current) return
 
       const state = gameStateRef.current
 
@@ -128,6 +129,7 @@ export default function RacingGame() {
 
     // 键盘事件处理
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!gameStateRef.current) return
       if (e.key === 'ArrowLeft') {
         gameStateRef.current.keys.left = true
         e.preventDefault()
@@ -139,6 +141,7 @@ export default function RacingGame() {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (!gameStateRef.current) return
       if (e.key === 'ArrowLeft') {
         gameStateRef.current.keys.left = false
       }

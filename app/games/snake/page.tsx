@@ -115,7 +115,7 @@ export default function SnakeGame() {
     let snake: Position[] = [{ x: 10, y: 10 }]
     let direction: Position = { x: 1, y: 0 }
     let food: Position = { x: 15, y: 15 }
-    let gameLoop: number
+    let gameLoop: ReturnType<typeof setInterval>
 
     // 绘制函数
     const draw = () => {
@@ -453,7 +453,7 @@ export default function SnakeGame() {
                   padding: '14px 18px',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
-                  border: 'none',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '16px',
                   cursor: 'pointer',
                   fontSize: '15px',
@@ -463,8 +463,7 @@ export default function SnakeGame() {
                   gap: '10px',
                   boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
                   transition: 'all 0.3s ease',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  backdropFilter: 'blur(10px)'
                 }}
                 title={powerUp.description}
                 onMouseEnter={(e) => {

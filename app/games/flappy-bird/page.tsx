@@ -97,9 +97,10 @@ export default function FlappyBirdGame() {
             (bird.y < pipe.top || bird.y + bird.height > pipe.bottom)) {
           setGameOver(true)
         }
-        if (pipe.x + pipe.width < bird.x && !(pipe as any).passed) {
-          setScore(prev => prev + 1)
-          (pipe as any).passed = true
+        const pipeWithPassed = pipe as any
+        if (pipe.x + pipe.width < bird.x && !pipeWithPassed.passed) {
+          setScore((prev: number) => prev + 1)
+          pipeWithPassed.passed = true
         }
       })
     }

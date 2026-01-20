@@ -527,7 +527,7 @@ export default function BreakoutGame() {
                   padding: '14px 18px',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   color: 'white',
-                  border: 'none',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
                   borderRadius: '16px',
                   cursor: 'pointer',
                   fontSize: '15px',
@@ -537,8 +537,7 @@ export default function BreakoutGame() {
                   gap: '10px',
                   boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
                   transition: 'all 0.3s ease',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                  backdropFilter: 'blur(10px)'
                 }}
                 title={powerUp.description}
                 onMouseEnter={(e) => {
