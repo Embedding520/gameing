@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const updateResult = await users.updateOne(
+    const userUpdateResult = await users.updateOne(
       { _id: userId },
       {
         $inc: { coins: payment.coins },
@@ -127,6 +127,7 @@ export async function POST(request: NextRequest) {
             coins: payment.coins,
             timestamp: new Date(),
             paymentMethod: 'creem',
+            manuallyCompleted: true,
           },
         } as any,
       }
@@ -138,7 +139,7 @@ export async function POST(request: NextRequest) {
       coins: payment.coins,
       originalStatus: originalStatus,
       paymentUpdateResult: updateResult.modifiedCount,
-      userUpdateResult: updateResult.modifiedCount,
+      userUpdateResult: userUpdateResult.modifiedCount,
     })
 
     return NextResponse.json({
