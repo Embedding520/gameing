@@ -1,19 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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'
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 export async function POST(req: NextRequest) {
   try {
+    // 优先使用环境变量，如果没有则使用后备 Key（仅用于开发测试）
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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'
+    const usingEnvVar = !!process.env.OPENROUTER_API_KEY
+    
     // 检查 API Key 是否配置
     if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.length < 10) {
-      console.error('OPENROUTER_API_KEY 未正确配置')
+      console.error('OPENROUTER_API_KEY 未正确配置', {
+        hasEnvVar: usingEnvVar,
+        keyLength: OPENROUTER_API_KEY?.length || 0,
+      })
       return NextResponse.json(
-        { error: 'AI服务配置错误，请联系管理员' },
+        { 
+          error: 'AI服务配置错误，请联系管理员',
+          details: 'OPENROUTER_API_KEY 未配置或无效',
+        },
         { status: 500 }
       )
     }
+    
+    // 记录使用的 API Key 来源
+    console.log('AI 聊天请求:', {
+      usingEnvVar,
+      apiKeyPrefix: OPENROUTER_API_KEY.substring(0, 20) + '...',
+      keyLength: OPENROUTER_API_KEY.length,
+    })
 
     // 验证用户身份
     const authHeader = req.headers.get('Authorization')
@@ -55,8 +71,9 @@ export async function POST(req: NextRequest) {
     console.log('OpenRouter API 请求:', {
       model: requestBody.model,
       messageCount: messages.length,
-      apiKeyPrefix: OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 20)}...` : '未设置',
-      usingEnvVar: !!process.env.OPENROUTER_API_KEY,
+      apiKeyPrefix: OPENROUTER_API_KEY.substring(0, 20) + '...',
+      usingEnvVar,
+      url: OPENROUTER_API_URL,
     })
     
     const response = await fetch(OPENROUTER_API_URL, {
@@ -83,8 +100,9 @@ export async function POST(req: NextRequest) {
         statusText: response.statusText,
         error: errorData,
         errorText: errorText,
-        apiKeyPrefix: OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 20)}...` : '未设置',
-        usingEnvVar: !!process.env.OPENROUTER_API_KEY,
+        apiKeyPrefix: OPENROUTER_API_KEY.substring(0, 20) + '...',
+        usingEnvVar,
+        model: requestBody.model,
       })
       
       // 提供更详细的错误信息
