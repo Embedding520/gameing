@@ -80,15 +80,34 @@ export default function AIChat({ onClose }: AIChatProps) {
         setMessages((prev) => [...prev, assistantMessage])
       } else {
         // 显示更详细的错误信息
-        const errorMsg = data.error || '发送失败，请稍后重试'
-        const details = data.details ? `\n\n详情: ${data.details}` : ''
-        const status = data.status ? `\n\n状态码: ${data.status}` : ''
+        let errorMsg = data.error || '发送失败，请稍后重试'
+        let details = data.details ? `\n\n详情: ${data.details}` : ''
+        
+        // 针对 401 错误提供特殊提示
+        if (response.status === 401) {
+          if (data.error === '未授权' || data.error === '无效的令牌') {
+            errorMsg = '登录已过期，请重新登录'
+            details = '\n\n请刷新页面或重新登录后重试'
+            // 清除过期的 token
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            // 延迟跳转，让用户看到错误信息
+            setTimeout(() => {
+              window.location.href = '/login'
+            }, 2000)
+          } else {
+            errorMsg = 'API密钥无效或已过期'
+            details = '\n\n请检查 OPENROUTER_API_KEY 配置，或联系管理员'
+          }
+        }
+        
+        const status = `\n\n状态码: ${response.status}`
         const fullError = `${errorMsg}${details}${status}`
         
         console.error('AI 聊天错误:', {
+          status: response.status,
           error: data.error,
           details: data.details,
-          status: data.status,
           fullResponse: data,
         })
         
