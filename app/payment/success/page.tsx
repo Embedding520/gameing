@@ -10,7 +10,9 @@ function PaymentSuccessContent() {
   const [loading, setLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
   const [verifying, setVerifying] = useState(false)
+  const [completing, setCompleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isStripeFormat, setIsStripeFormat] = useState(false)
   const pollCountRef = useRef(0)
 
   useEffect(() => {
@@ -173,20 +175,72 @@ function PaymentSuccessContent() {
           }, 1000)
         } else {
           setError(data.message || `支付仍在处理中 (状态: ${data.creemStatus || '未知'})`)
+          setIsStripeFormat(data.isStripeFormat || false)
           // 显示 Creem 返回的详细信息
           if (data.creemData) {
             console.log('Creem 支付数据:', data.creemData)
           }
         }
       } else {
-        setError(data.error || '验证失败，请稍后再试')
-        console.error('验证失败:', data)
+        const errorData = data
+        setError(errorData.error || '验证失败，请稍后再试')
+        setIsStripeFormat(errorData.isStripeFormat || false)
+        console.error('验证失败:', errorData)
       }
     } catch (error: any) {
       console.error('手动验证失败:', error)
       setError(error.message || '验证失败，请稍后再试')
     } finally {
       setVerifying(false)
+    }
+  }
+
+  // 手动完成支付（用于 Stripe 格式的 checkout ID）
+  const handleManualComplete = async () => {
+    if (!paymentId) return
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
+    if (!confirm('确认手动完成支付？只有在支付已完成但系统无法自动确认的情况下才使用此功能。')) {
+      return
+    }
+
+    setCompleting(true)
+    setError(null)
+    try {
+      console.log('开始手动完成支付:', paymentId)
+      const response = await fetch('/api/payment/manual-complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ paymentId }),
+      })
+
+      const data = await response.json()
+      console.log('手动完成响应:', data)
+
+      if (response.ok && data.status === 'completed') {
+        setPaymentStatus('completed')
+        setLoading(false)
+        // 刷新页面以更新用户信息
+        setTimeout(() => {
+          window.location.reload()
+        }, 1000)
+      } else {
+        setError(data.error || '手动完成失败，请稍后再试')
+        console.error('手动完成失败:', data)
+      }
+    } catch (error: any) {
+      console.error('手动完成失败:', error)
+      setError(error.message || '手动完成失败，请稍后再试')
+    } finally {
+      setCompleting(false)
     }
   }
 
@@ -268,20 +322,38 @@ function PaymentSuccessContent() {
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={handleManualVerify}
-                disabled={verifying}
+                disabled={verifying || completing}
                 style={{
                   padding: '12px 24px',
-                  background: verifying ? '#ccc' : '#4CAF50',
+                  background: verifying || completing ? '#ccc' : '#4CAF50',
                   color: 'white',
                   border: 'none',
                   borderRadius: '6px',
-                  cursor: verifying ? 'not-allowed' : 'pointer',
+                  cursor: verifying || completing ? 'not-allowed' : 'pointer',
                   fontSize: '16px',
                   fontWeight: 'bold',
                 }}
               >
                 {verifying ? '验证中...' : '手动验证支付'}
               </button>
+              {isStripeFormat && (
+                <button
+                  onClick={handleManualComplete}
+                  disabled={verifying || completing}
+                  style={{
+                    padding: '12px 24px',
+                    background: completing ? '#ccc' : '#FF9800',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: completing ? 'not-allowed' : 'pointer',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {completing ? '处理中...' : '手动完成支付'}
+                </button>
+              )}
               <button
                 onClick={() => router.push('/')}
                 style={{

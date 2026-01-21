@@ -100,20 +100,67 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      // 查询 Creem checkout 状态
-      const creemResponse = await fetch(
-        `${CREEM_API_URL}/v1/checkouts/${payment.creemCheckoutId}`,
-        {
-          method: 'GET',
-          headers: {
-            'x-api-key': CREEM_API_KEY,
-            'Content-Type': 'application/json',
-          },
+      // 查询 Creem 支付状态
+      // 尝试多个可能的端点
+      let creemResponse: Response | null = null
+      let creemData: any = null
+      let lastError: any = null
+      
+      // 尝试 1: 查询 checkout
+      try {
+        console.log('尝试查询 checkout:', {
+          checkoutId: payment.creemCheckoutId,
+          endpoint: `${CREEM_API_URL}/v1/checkouts/${payment.creemCheckoutId}`,
+        })
+        
+        creemResponse = await fetch(
+          `${CREEM_API_URL}/v1/checkouts/${payment.creemCheckoutId}`,
+          {
+            method: 'GET',
+            headers: {
+              'x-api-key': CREEM_API_KEY,
+              'Content-Type': 'application/json',
+            },
+          }
+        )
+        
+        if (creemResponse.ok) {
+          creemData = await creemResponse.json()
+        } else {
+          lastError = await creemResponse.text()
         }
-      )
-
-      if (!creemResponse.ok) {
-        const errorText = await creemResponse.text()
+      } catch (error: any) {
+        console.log('尝试查询 checkout 失败，尝试其他端点:', error.message)
+      }
+      
+      // 如果 checkout 查询失败，尝试查询支付
+      if (!creemResponse || !creemResponse.ok) {
+        try {
+          // 尝试 2: 查询支付（如果 checkout ID 实际上是 payment ID）
+          creemResponse = await fetch(
+            `${CREEM_API_URL}/v1/payments/${payment.creemCheckoutId}`,
+            {
+              method: 'GET',
+              headers: {
+                'x-api-key': CREEM_API_KEY,
+                'Content-Type': 'application/json',
+              },
+            }
+          )
+          
+          if (creemResponse.ok) {
+            creemData = await creemResponse.json()
+          } else {
+            lastError = await creemResponse.text()
+          }
+        } catch (error: any) {
+          console.log('尝试查询 payment 也失败:', error.message)
+        }
+      }
+      
+      // 如果都失败了，返回错误
+      if (!creemResponse || !creemResponse.ok) {
+        const errorText = lastError || (creemResponse ? await creemResponse.text() : '无响应')
         let errorData: any = {}
         try {
           errorData = JSON.parse(errorText)
@@ -122,21 +169,32 @@ export async function POST(request: NextRequest) {
         }
         
         console.error('Creem API 查询失败:', {
-          status: creemResponse.status,
-          statusText: creemResponse.statusText,
+          status: creemResponse?.status || '无响应',
+          statusText: creemResponse?.statusText || '无响应',
           error: errorData,
           errorText,
           checkoutId: payment.creemCheckoutId,
           apiUrl: CREEM_API_URL,
+          triedEndpoints: ['/v1/checkouts', '/v1/payments'],
         })
         
-        // 如果是 404，说明 checkout 不存在，可能支付未完成或 ID 错误
-        if (creemResponse.status === 404) {
+        // 如果是 404，说明 checkout 不存在
+        // 但 checkoutId 是 Stripe 格式，可能需要通过其他方式验证
+        if (creemResponse?.status === 404) {
+          // 如果 checkoutId 是 Stripe 格式（ch_ 开头），可能 Creem 使用 Stripe
+          const isStripeFormat = payment.creemCheckoutId?.startsWith('ch_')
+          
           return NextResponse.json(
             { 
               error: '支付记录在 Creem 中不存在',
-              message: '可能支付尚未完成，或 Checkout ID 不正确',
+              message: isStripeFormat 
+                ? '检测到 Stripe 格式的 Checkout ID，可能需要通过 Webhook 确认支付状态'
+                : '可能支付尚未完成，或 Checkout ID 不正确',
               checkoutId: payment.creemCheckoutId,
+              isStripeFormat,
+              suggestion: isStripeFormat 
+                ? '请检查 Webhook 是否已正确配置，或等待 Webhook 触发'
+                : '请确认支付是否已完成',
             },
             { status: 404 }
           )
@@ -146,13 +204,19 @@ export async function POST(request: NextRequest) {
           { 
             error: '无法查询 Creem 支付状态',
             details: errorData.message || errorText,
-            status: creemResponse.status,
+            status: creemResponse?.status || 500,
           },
-          { status: creemResponse.status }
+          { status: creemResponse?.status || 500 }
         )
       }
 
-      const creemData = await creemResponse.json()
+      // creemData 已经在上面获取了
+      if (!creemData) {
+        return NextResponse.json(
+          { error: '无法解析 Creem API 响应' },
+          { status: 500 }
+        )
+      }
       
       console.log('Creem API 响应数据:', {
         checkoutId: payment.creemCheckoutId,
