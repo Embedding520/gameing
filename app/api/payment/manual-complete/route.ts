@@ -67,26 +67,43 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 只允许手动完成 Stripe 格式的 checkout ID（ch_ 开头）
+    // 允许手动完成以下情况：
+    // 1. Stripe 格式的 checkout ID（ch_ 开头）
+    // 2. 状态为 failed 或 pending 的记录（可能是支付已完成但状态未更新）
     const isStripeFormat = payment.creemCheckoutId?.startsWith('ch_')
-    if (!isStripeFormat) {
+    const canManualComplete = isStripeFormat || 
+                              payment.status === 'failed' || 
+                              payment.status === 'pending'
+    
+    if (!canManualComplete) {
       return NextResponse.json(
         { error: '此支付记录不支持手动完成，请等待自动处理' },
         { status: 400 }
       )
     }
+    
+    // 记录原始状态，用于日志
+    const originalStatus = payment.status
 
     // 更新支付状态
-    await payments.updateOne(
+    const updateResult = await payments.updateOne(
       { _id: payment._id },
       {
         $set: {
           status: 'completed',
           completedAt: new Date(),
           manuallyCompleted: true, // 标记为手动完成
+          originalStatus: originalStatus, // 保存原始状态用于审计
         },
       }
     )
+    
+    if (updateResult.modifiedCount === 0) {
+      console.warn('支付状态更新失败，可能已经是 completed 状态:', {
+        paymentId: payment._id.toString(),
+        currentStatus: payment.status,
+      })
+    }
 
     // 更新用户金币
     const users = db.collection('users')
@@ -119,7 +136,9 @@ export async function POST(request: NextRequest) {
       paymentId: payment._id.toString(),
       userId: payment.userId,
       coins: payment.coins,
-      updateResult: updateResult.modifiedCount,
+      originalStatus: originalStatus,
+      paymentUpdateResult: updateResult.modifiedCount,
+      userUpdateResult: updateResult.modifiedCount,
     })
 
     return NextResponse.json({
