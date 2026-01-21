@@ -81,8 +81,18 @@ export default function AIChat({ onClose }: AIChatProps) {
       } else {
         // 显示更详细的错误信息
         const errorMsg = data.error || '发送失败，请稍后重试'
-        const details = data.details ? `\n详情: ${data.details}` : ''
-        alert(`${errorMsg}${details}`)
+        const details = data.details ? `\n\n详情: ${data.details}` : ''
+        const status = data.status ? `\n\n状态码: ${data.status}` : ''
+        const fullError = `${errorMsg}${details}${status}`
+        
+        console.error('AI 聊天错误:', {
+          error: data.error,
+          details: data.details,
+          status: data.status,
+          fullResponse: data,
+        })
+        
+        alert(fullError)
         // 移除用户消息，因为发送失败
         setMessages((prev) => prev.slice(0, -1))
       }
