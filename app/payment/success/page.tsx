@@ -9,6 +9,7 @@ function PaymentSuccessContent() {
   const paymentId = searchParams.get('payment_id')
   const [loading, setLoading] = useState(true)
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
+  const [verifying, setVerifying] = useState(false)
 
   useEffect(() => {
     // 如果没有 payment_id，检查是否是直接访问或支付回调
@@ -28,7 +29,10 @@ function PaymentSuccessContent() {
     }
 
     // 轮询检查支付状态
-    const checkPaymentStatus = async () => {
+    let pollCount = 0
+    const maxPolls = 30 // 最多轮询 30 次（60秒）
+    
+    const checkPaymentStatus = async (forceVerify = false) => {
       const token = localStorage.getItem('token')
       if (!token) {
         router.push('/login')
@@ -36,6 +40,31 @@ function PaymentSuccessContent() {
       }
 
       try {
+        // 如果轮询超过 10 次（20秒）仍未完成，尝试手动验证
+        if (pollCount >= 10 || forceVerify) {
+          const verifyResponse = await fetch('/api/payment/creem/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ paymentId }),
+          })
+
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json()
+            if (verifyData.status === 'completed') {
+              setPaymentStatus('completed')
+              // 刷新用户信息
+              window.location.reload()
+              setTimeout(() => {
+                router.push('/')
+              }, 2000)
+              return
+            }
+          }
+        }
+
         const response = await fetch('/api/payment/status', {
           method: 'POST',
           headers: {
@@ -50,24 +79,84 @@ function PaymentSuccessContent() {
           setPaymentStatus(data.status)
 
           if (data.status === 'completed') {
-            // 支付成功，等待几秒后返回游戏
+            // 支付成功，刷新页面以更新用户信息
+            window.location.reload()
             setTimeout(() => {
               router.push('/')
             }, 2000)
           } else if (data.status === 'pending') {
-            // 如果还在处理中，继续轮询
-            setTimeout(checkPaymentStatus, 2000)
+            pollCount++
+            if (pollCount < maxPolls) {
+              // 如果还在处理中，继续轮询
+              setTimeout(() => checkPaymentStatus(), 2000)
+            } else {
+              // 超时后尝试最后一次验证
+              console.warn('支付状态检查超时，尝试手动验证')
+              setTimeout(() => checkPaymentStatus(true), 1000)
+            }
+          } else if (data.status === 'failed') {
+            setPaymentStatus('failed')
           }
         }
       } catch (error) {
         console.error('检查支付状态失败:', error)
+        // 如果出错，尝试手动验证
+        if (pollCount >= 5) {
+          setTimeout(() => checkPaymentStatus(true), 2000)
+        }
       } finally {
-        setLoading(false)
+        if (pollCount === 0) {
+          setLoading(false)
+        }
       }
     }
 
     checkPaymentStatus()
   }, [paymentId, router])
+
+  // 手动验证支付
+  const handleManualVerify = async () => {
+    if (!paymentId) return
+    
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+      return
+    }
+
+    setVerifying(true)
+    try {
+      const response = await fetch('/api/payment/creem/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ paymentId }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.status === 'completed') {
+          setPaymentStatus('completed')
+          // 刷新页面以更新用户信息
+          setTimeout(() => {
+            window.location.reload()
+          }, 1000)
+        } else {
+          alert(data.message || '支付仍在处理中，请稍后再试')
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || '验证失败，请稍后再试')
+      }
+    } catch (error) {
+      console.error('手动验证失败:', error)
+      alert('验证失败，请稍后再试')
+    } finally {
+      setVerifying(false)
+    }
+  }
 
   return (
     <div style={{
@@ -131,21 +220,39 @@ function PaymentSuccessContent() {
                 支付 ID: {paymentId}
               </p>
             )}
-            <button
-              onClick={() => router.push('/')}
-              style={{
-                padding: '12px 24px',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: 'bold',
-              }}
-            >
-              返回游戏
-            </button>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button
+                onClick={handleManualVerify}
+                disabled={verifying}
+                style={{
+                  padding: '12px 24px',
+                  background: verifying ? '#ccc' : '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: verifying ? 'not-allowed' : 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                {verifying ? '验证中...' : '手动验证支付'}
+              </button>
+              <button
+                onClick={() => router.push('/')}
+                style={{
+                  padding: '12px 24px',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                }}
+              >
+                返回游戏
+              </button>
+            </div>
           </>
         )}
       </div>

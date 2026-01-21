@@ -24,11 +24,14 @@ export async function POST(req: NextRequest) {
       )
     }
     
-    // 记录使用的 API Key 来源
+    // 记录使用的 API Key 来源和详细信息
     console.log('AI 聊天请求:', {
       usingEnvVar,
       apiKeyPrefix: OPENROUTER_API_KEY.substring(0, 20) + '...',
+      apiKeySuffix: '...' + OPENROUTER_API_KEY.substring(OPENROUTER_API_KEY.length - 10),
       keyLength: OPENROUTER_API_KEY.length,
+      envVarExists: !!process.env.OPENROUTER_API_KEY,
+      envVarLength: process.env.OPENROUTER_API_KEY?.length || 0,
     })
 
     // 验证用户身份

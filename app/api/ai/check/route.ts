@@ -46,8 +46,14 @@ export async function GET(request: NextRequest) {
     config: {
       hasApiKey: !!OPENROUTER_API_KEY,
       apiKeyPrefix: OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 20)}...` : '未设置',
+      apiKeySuffix: OPENROUTER_API_KEY ? `...${OPENROUTER_API_KEY.substring(OPENROUTER_API_KEY.length - 10)}` : '未设置',
       apiKeyLength: OPENROUTER_API_KEY?.length || 0,
       usingEnvVar,
+      envVarExists: !!process.env.OPENROUTER_API_KEY,
+      envVarLength: process.env.OPENROUTER_API_KEY?.length || 0,
+      expectedKeyPrefix: 'sk-or-v1-306',
+      expectedKeySuffix: 'a1fe8d0',
+      keyMatches: OPENROUTER_API_KEY?.startsWith('sk-or-v1-306') && OPENROUTER_API_KEY?.endsWith('a1fe8d0'),
       recommendation: usingEnvVar 
         ? '✅ 使用环境变量（推荐）' 
         : '⚠️ 使用硬编码 Key（建议在 Vercel 环境变量中配置）',

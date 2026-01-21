@@ -39,6 +39,12 @@ export async function POST(request: NextRequest) {
     }
 
     const event = JSON.parse(body)
+    
+    console.log('收到 Creem Webhook 事件:', {
+      type: event.type,
+      eventId: event.id,
+      timestamp: new Date().toISOString(),
+    })
 
     // 处理支付完成事件
     if (event.type === 'checkout.completed' || event.type === 'payment.succeeded') {
@@ -56,12 +62,23 @@ export async function POST(request: NextRequest) {
       })
 
       if (!payment) {
-        console.error('未找到对应的支付记录:', checkoutId)
+        console.error('未找到对应的支付记录:', {
+          checkoutId,
+          eventType: event.type,
+          eventData: event.data,
+        })
         return NextResponse.json(
           { error: '支付记录不存在' },
           { status: 404 }
         )
       }
+      
+      console.log('找到支付记录，开始处理:', {
+        paymentId: payment._id.toString(),
+        userId: payment.userId,
+        amount: payment.amount,
+        coins: payment.coins,
+      })
 
       // 更新支付状态
       await payments.updateOne(
