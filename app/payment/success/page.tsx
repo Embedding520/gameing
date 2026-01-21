@@ -93,7 +93,13 @@ function PaymentSuccessContent() {
           } else {
             const errorData = await verifyResponse.json().catch(() => ({}))
             console.error('手动验证失败:', errorData)
-            setError(errorData.error || '验证失败')
+            // 如果检测到 Stripe 格式或允许手动完成，显示手动完成按钮
+            if (errorData.isStripeFormat || errorData.canManualComplete) {
+              setIsStripeFormat(true)
+              setError(errorData.message || errorData.suggestion || '无法通过 API 验证，但可以手动完成支付')
+            } else {
+              setError(errorData.error || '验证失败')
+            }
           }
         }
 

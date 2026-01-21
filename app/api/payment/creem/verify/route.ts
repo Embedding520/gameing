@@ -184,16 +184,18 @@ export async function POST(request: NextRequest) {
           // 如果 checkoutId 是 Stripe 格式（ch_ 开头），可能 Creem 使用 Stripe
           const isStripeFormat = payment.creemCheckoutId?.startsWith('ch_')
           
+          // 对于 Stripe 格式，返回特殊状态码，让前端知道可以使用手动完成
           return NextResponse.json(
             { 
               error: '支付记录在 Creem 中不存在',
               message: isStripeFormat 
-                ? '检测到 Stripe 格式的 Checkout ID，可能需要通过 Webhook 确认支付状态'
+                ? '检测到 Stripe 格式的 Checkout ID，无法通过 API 直接查询。如果支付已完成，可以使用"手动完成支付"功能'
                 : '可能支付尚未完成，或 Checkout ID 不正确',
               checkoutId: payment.creemCheckoutId,
               isStripeFormat,
+              canManualComplete: isStripeFormat, // 标记可以手动完成
               suggestion: isStripeFormat 
-                ? '请检查 Webhook 是否已正确配置，或等待 Webhook 触发'
+                ? '如果支付已完成，请点击"手动完成支付"按钮，或等待 Webhook 自动处理'
                 : '请确认支付是否已完成',
             },
             { status: 404 }
