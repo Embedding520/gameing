@@ -148,7 +148,9 @@ function PaymentSuccessContent() {
     }
 
     setVerifying(true)
+    setError(null)
     try {
+      console.log('开始手动验证支付:', paymentId)
       const response = await fetch('/api/payment/creem/verify', {
         method: 'POST',
         headers: {
@@ -158,24 +160,31 @@ function PaymentSuccessContent() {
         body: JSON.stringify({ paymentId }),
       })
 
+      const data = await response.json()
+      console.log('手动验证响应:', data)
+
       if (response.ok) {
-        const data = await response.json()
         if (data.status === 'completed') {
           setPaymentStatus('completed')
+          setLoading(false)
           // 刷新页面以更新用户信息
           setTimeout(() => {
             window.location.reload()
           }, 1000)
         } else {
-          alert(data.message || '支付仍在处理中，请稍后再试')
+          setError(data.message || `支付仍在处理中 (状态: ${data.creemStatus || '未知'})`)
+          // 显示 Creem 返回的详细信息
+          if (data.creemData) {
+            console.log('Creem 支付数据:', data.creemData)
+          }
         }
       } else {
-        const error = await response.json()
-        alert(error.error || '验证失败，请稍后再试')
+        setError(data.error || '验证失败，请稍后再试')
+        console.error('验证失败:', data)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('手动验证失败:', error)
-      alert('验证失败，请稍后再试')
+      setError(error.message || '验证失败，请稍后再试')
     } finally {
       setVerifying(false)
     }

@@ -110,72 +110,108 @@ export async function POST(request: NextRequest) {
 
       const creemData = await creemResponse.json()
       
-      // 检查支付状态
-      const creemStatus = creemData.status || creemData.payment_status
+      console.log('Creem API 响应数据:', {
+        checkoutId: payment.creemCheckoutId,
+        creemData,
+        paymentStatus: payment.status,
+      })
+      
+      // 检查支付状态 - 尝试多种可能的字段
+      const creemStatus = creemData.status || 
+                         creemData.payment_status || 
+                         creemData.state ||
+                         creemData.checkout_status
+      
+      // 检查是否已支付 - 尝试多种可能的判断方式
       const isPaid = creemStatus === 'paid' || 
                      creemStatus === 'completed' || 
                      creemStatus === 'succeeded' ||
-                     creemData.paid === true
+                     creemStatus === 'success' ||
+                     creemData.paid === true ||
+                     creemData.completed === true ||
+                     creemData.succeeded === true ||
+                     (creemData.payment && creemData.payment.status === 'succeeded') ||
+                     (creemData.payment && creemData.payment.status === 'completed')
+      
+      console.log('支付状态判断:', {
+        creemStatus,
+        isPaid,
+        paymentStatus: payment.status,
+      })
 
-      if (isPaid && payment.status === 'pending') {
-        // 支付已完成，但数据库状态还是 pending，手动更新
-        await payments.updateOne(
-          { _id: payment._id },
-          {
-            $set: {
-              status: 'completed',
-              completedAt: new Date(),
-            },
-          }
-        )
-
-        // 更新用户金币
-        const users = db.collection('users')
-        let userId: ObjectId
-        try {
-          userId = new ObjectId(payment.userId)
-        } catch {
-          return NextResponse.json(
-            { error: '无效的用户 ID' },
-            { status: 400 }
-          )
-        }
-
-        await users.updateOne(
-          { _id: userId },
-          {
-            $inc: { coins: payment.coins },
-            $push: {
-              rechargeHistory: {
-                amount: payment.amount,
-                coins: payment.coins,
-                timestamp: new Date(),
-                paymentMethod: 'creem',
+      if (isPaid) {
+        if (payment.status === 'pending') {
+          // 支付已完成，但数据库状态还是 pending，手动更新
+          console.log('开始更新支付状态和用户金币...')
+          
+          await payments.updateOne(
+            { _id: payment._id },
+            {
+              $set: {
+                status: 'completed',
+                completedAt: new Date(),
               },
-            } as any,
+            }
+          )
+
+          // 更新用户金币
+          const users = db.collection('users')
+          let userId: ObjectId
+          try {
+            userId = new ObjectId(payment.userId)
+          } catch {
+            return NextResponse.json(
+              { error: '无效的用户 ID' },
+              { status: 400 }
+            )
           }
-        )
 
-        console.log('手动验证支付成功:', payment._id)
+          const updateResult = await users.updateOne(
+            { _id: userId },
+            {
+              $inc: { coins: payment.coins },
+              $push: {
+                rechargeHistory: {
+                  amount: payment.amount,
+                  coins: payment.coins,
+                  timestamp: new Date(),
+                  paymentMethod: 'creem',
+                },
+              } as any,
+            }
+          )
 
-        return NextResponse.json({
-          success: true,
-          status: 'completed',
-          message: '支付已验证并完成',
-          coins: payment.coins,
-        })
-      } else if (isPaid) {
-        return NextResponse.json({
-          success: true,
-          status: 'completed',
-          message: '支付已完成',
-        })
+          console.log('支付状态和金币更新完成:', {
+            paymentId: payment._id.toString(),
+            userId: payment.userId,
+            coins: payment.coins,
+            updateResult: updateResult.modifiedCount,
+          })
+
+          return NextResponse.json({
+            success: true,
+            status: 'completed',
+            message: '支付已验证并完成',
+            coins: payment.coins,
+            creemStatus,
+          })
+        } else {
+          // 已经完成，直接返回
+          return NextResponse.json({
+            success: true,
+            status: 'completed',
+            message: '支付已完成',
+            creemStatus,
+          })
+        }
       } else {
+        // 支付未完成
         return NextResponse.json({
           success: false,
           status: 'pending',
           message: '支付仍在处理中',
           creemStatus,
+          creemData: creemData, // 返回完整数据用于调试
         })
       }
     } catch (error: any) {
