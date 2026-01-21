@@ -4,6 +4,8 @@ import { getDatabase } from '@/lib/db'
 import { verifyToken } from '@/lib/auth'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 const verifySchema = z.object({
   paymentId: z.string(),
 })
@@ -66,8 +68,22 @@ export async function POST(request: NextRequest) {
 
     // 如果没有 creemCheckoutId，无法验证
     if (!payment.creemCheckoutId) {
+      console.error('支付记录缺少 creemCheckoutId:', {
+        paymentId: payment._id.toString(),
+        payment: {
+          _id: payment._id.toString(),
+          userId: payment.userId,
+          status: payment.status,
+          creemCheckoutId: payment.creemCheckoutId,
+          checkoutUrl: payment.checkoutUrl,
+        },
+      })
       return NextResponse.json(
-        { error: '支付记录缺少 Creem Checkout ID' },
+        { 
+          error: '支付记录缺少 Creem Checkout ID',
+          message: '无法验证支付状态，请联系客服',
+          paymentId: payment._id.toString(),
+        },
         { status: 400 }
       )
     }
@@ -98,12 +114,40 @@ export async function POST(request: NextRequest) {
 
       if (!creemResponse.ok) {
         const errorText = await creemResponse.text()
+        let errorData: any = {}
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: errorText }
+        }
+        
         console.error('Creem API 查询失败:', {
           status: creemResponse.status,
-          error: errorText,
+          statusText: creemResponse.statusText,
+          error: errorData,
+          errorText,
+          checkoutId: payment.creemCheckoutId,
+          apiUrl: CREEM_API_URL,
         })
+        
+        // 如果是 404，说明 checkout 不存在，可能支付未完成或 ID 错误
+        if (creemResponse.status === 404) {
+          return NextResponse.json(
+            { 
+              error: '支付记录在 Creem 中不存在',
+              message: '可能支付尚未完成，或 Checkout ID 不正确',
+              checkoutId: payment.creemCheckoutId,
+            },
+            { status: 404 }
+          )
+        }
+        
         return NextResponse.json(
-          { error: '无法查询 Creem 支付状态' },
+          { 
+            error: '无法查询 Creem 支付状态',
+            details: errorData.message || errorText,
+            status: creemResponse.status,
+          },
           { status: creemResponse.status }
         )
       }
