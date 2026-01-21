@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { ObjectId } from 'mongodb'
+import { getDatabase } from '@/lib/db'
+import { verifyToken } from '@/lib/auth'
+import { z } from 'zod'
+
+export const dynamic = 'force-dynamic'
+
+const debugSchema = z.object({
+  paymentId: z.string(),
+})
+
+export async function POST(request: NextRequest) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: '未授权' },
+        { status: 401 }
+      )
+    }
+
+    const token = authHeader.substring(7)
+    const payload = verifyToken(token)
+    if (!payload) {
+      return NextResponse.json(
+        { error: '无效的 token' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const { paymentId } = debugSchema.parse(body)
+
+    const db = await getDatabase()
+    const payments = db.collection('payments')
+
+    let paymentObjectId: ObjectId
+    try {
+      paymentObjectId = new ObjectId(paymentId)
+    } catch {
+      return NextResponse.json(
+        { error: '无效的支付 ID' },
+        { status: 400 }
+      )
+    }
+
+    const payment = await payments.findOne({
+      _id: paymentObjectId,
+      userId: payload.userId,
+    })
+
+    if (!payment) {
+      return NextResponse.json(
+        { error: '支付记录不存在' },
+        { status: 404 }
+      )
+    }
+
+    // 返回支付记录的详细信息（用于调试）
+    return NextResponse.json({
+      payment: {
+        _id: payment._id.toString(),
+        userId: payment.userId,
+        username: payment.username,
+        amount: payment.amount,
+        coins: payment.coins,
+        status: payment.status,
+        paymentMethod: payment.paymentMethod,
+        creemCheckoutId: payment.creemCheckoutId || null,
+        checkoutUrl: payment.checkoutUrl || null,
+        createdAt: payment.createdAt,
+        completedAt: payment.completedAt || null,
+      },
+      hasCheckoutId: !!payment.creemCheckoutId,
+      canVerify: !!payment.creemCheckoutId,
+    })
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: '输入验证失败', details: error.errors },
+        { status: 400 }
+      )
+    }
+    console.error('调试支付记录错误:', error)
+    return NextResponse.json(
+      { error: error?.message || '查询失败' },
+      { status: 500 }
+    )
+  }
+}
