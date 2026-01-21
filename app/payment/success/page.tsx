@@ -11,7 +11,18 @@ function PaymentSuccessContent() {
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null)
 
   useEffect(() => {
+    // 如果没有 payment_id，检查是否是直接访问或支付回调
     if (!paymentId) {
+      // 尝试从 URL 中获取其他可能的参数
+      const checkoutId = searchParams.get('checkout_id')
+      const creemId = searchParams.get('id')
+      
+      if (checkoutId || creemId) {
+        // 如果有 Creem 的 ID，说明是支付回调，但缺少 payment_id
+        // 这种情况可能需要通过其他方式查找支付记录
+        console.warn('支付回调缺少 payment_id，但有 checkout_id:', checkoutId || creemId)
+      }
+      
       setLoading(false)
       return
     }
@@ -86,11 +97,40 @@ function PaymentSuccessContent() {
             <p style={{ color: '#666', marginBottom: '20px' }}>金币已添加到您的账户</p>
             <p style={{ color: '#999', fontSize: '14px' }}>正在返回游戏...</p>
           </>
+        ) : !paymentId ? (
+          <>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>⚠️</div>
+            <h1 style={{ marginBottom: '20px', color: '#FF9800' }}>支付回调异常</h1>
+            <p style={{ color: '#666', marginBottom: '20px' }}>无法获取支付信息，但支付可能已成功</p>
+            <p style={{ color: '#999', fontSize: '14px', marginBottom: '20px' }}>
+              请检查您的账户余额，或联系客服确认
+            </p>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                padding: '12px 24px',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+              }}
+            >
+              返回游戏
+            </button>
+          </>
         ) : (
           <>
             <div style={{ fontSize: '64px', marginBottom: '20px' }}>⏳</div>
             <h1 style={{ marginBottom: '20px', color: '#FF9800' }}>支付处理中</h1>
             <p style={{ color: '#666', marginBottom: '20px' }}>请稍候，我们正在确认您的支付</p>
+            {paymentId && (
+              <p style={{ color: '#999', fontSize: '12px', marginBottom: '20px' }}>
+                支付 ID: {paymentId}
+              </p>
+            )}
             <button
               onClick={() => router.push('/')}
               style={{

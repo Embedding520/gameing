@@ -85,9 +85,34 @@ export async function POST(request: NextRequest) {
     })
 
     // 调用 CREEM API 创建支付链接
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    // 优先使用环境变量，如果没有则尝试从请求头获取
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    
+    // 如果没有配置环境变量，尝试从请求头获取
+    if (!baseUrl) {
+      const host = request.headers.get('host')
+      const protocol = request.headers.get('x-forwarded-proto') || 'https'
+      if (host) {
+        baseUrl = `${protocol}://${host}`
+      } else {
+        // 最后的回退方案
+        baseUrl = 'http://localhost:3000'
+      }
+    }
+    
+    // 确保 URL 格式正确（移除末尾的斜杠）
+    baseUrl = baseUrl.replace(/\/$/, '')
+    
     const successUrl = `${baseUrl}/payment/success?payment_id=${paymentRecord.insertedId.toString()}`
     const cancelUrl = `${baseUrl}/payment/cancel?payment_id=${paymentRecord.insertedId.toString()}`
+    
+    console.log('支付回调 URL 配置:', {
+      baseUrl,
+      successUrl,
+      cancelUrl,
+      usingEnvVar: !!process.env.NEXT_PUBLIC_BASE_URL,
+      host: request.headers.get('host'),
+    })
     
     // 根据 CREEM 示例，构建请求体
     // 优先使用产品 ID（推荐方式），如果没有产品 ID 则使用金额方式
