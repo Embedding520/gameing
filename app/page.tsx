@@ -44,27 +44,6 @@ export default function Home() {
     }
   }, [])
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    const userStr = localStorage.getItem('user')
-    
-    if (!token || !userStr) {
-      router.push('/login')
-      return
-    }
-
-    setUser(JSON.parse(userStr))
-    // 立即获取最新用户信息（包括从支付页面返回后）
-    fetchUserInfo()
-    
-    // 定期刷新用户信息（每30秒）
-    const interval = setInterval(() => {
-      fetchUserInfo()
-    }, 30000)
-    
-    return () => clearInterval(interval)
-  }, [router, fetchUserInfo])
-
   const fetchUserInfo = useCallback(async () => {
     const token = localStorage.getItem('token')
     if (!token) return
@@ -86,6 +65,27 @@ export default function Home() {
       console.error('获取用户信息失败:', error)
     }
   }, [])
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (!token || !userStr) {
+      router.push('/login')
+      return
+    }
+
+    setUser(JSON.parse(userStr))
+    // 立即获取最新用户信息（包括从支付页面返回后）
+    fetchUserInfo()
+    
+    // 定期刷新用户信息（每30秒）
+    const interval = setInterval(() => {
+      fetchUserInfo()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [router, fetchUserInfo])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
