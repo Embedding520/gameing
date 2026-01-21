@@ -33,7 +33,20 @@ export async function POST(request: NextRequest) {
     const { amount, coins, productId } = checkoutSchema.parse(body)
 
     const CREEM_API_KEY = process.env.CREEM_API_KEY
-    const CREEM_API_URL = process.env.CREEM_API_URL || 'https://api.creem.io'
+    // 自动检测 API Key 环境并设置对应的 API URL
+    let CREEM_API_URL = process.env.CREEM_API_URL
+    if (!CREEM_API_URL && CREEM_API_KEY) {
+      // 如果 API Key 是测试环境的（包含 test），使用测试环境 URL
+      if (CREEM_API_KEY.includes('test') || CREEM_API_KEY.startsWith('creem_test_')) {
+        CREEM_API_URL = 'https://test-api.creem.io'
+      } else {
+        // 否则使用生产环境 URL
+        CREEM_API_URL = 'https://api.creem.io'
+      }
+    } else if (!CREEM_API_URL) {
+      // 如果没有 API Key，默认使用生产环境
+      CREEM_API_URL = 'https://api.creem.io'
+    }
     // 只有当环境变量存在且非空时才使用产品 ID
     const CREEM_PRODUCT_ID = process.env.CREEM_PRODUCT_ID?.trim() || productId?.trim() || undefined
     
