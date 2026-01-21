@@ -98,19 +98,24 @@ export async function POST(request: NextRequest) {
     })
 
     // 调用 CREEM API 创建支付链接
-    // 优先使用环境变量，如果没有则尝试从请求头获取
-    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    // 优先使用请求头中的实际域名（更可靠），如果没有则使用环境变量
+    let baseUrl: string | undefined = undefined
     
-    // 如果没有配置环境变量，尝试从请求头获取
+    // 优先从请求头获取实际域名（这样可以自动适配不同的部署域名）
+    const host = request.headers.get('host')
+    const protocol = request.headers.get('x-forwarded-proto') || 'https'
+    if (host) {
+      baseUrl = `${protocol}://${host}`
+    }
+    
+    // 如果请求头中没有，则使用环境变量
     if (!baseUrl) {
-      const host = request.headers.get('host')
-      const protocol = request.headers.get('x-forwarded-proto') || 'https'
-      if (host) {
-        baseUrl = `${protocol}://${host}`
-      } else {
-        // 最后的回退方案
-        baseUrl = 'http://localhost:3000'
-      }
+      baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+    }
+    
+    // 最后的回退方案
+    if (!baseUrl) {
+      baseUrl = 'http://localhost:3000'
     }
     
     // 确保 URL 格式正确（移除末尾的斜杠）
