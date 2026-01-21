@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const verifySchema = z.object({
   paymentId: z.string(),
+  forceComplete: z.boolean().optional(), // 强制完成（当无法通过 API 验证但用户确认支付已完成时）
 })
 
 export async function POST(request: NextRequest) {
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { paymentId } = verifySchema.parse(body)
+    const { paymentId, forceComplete } = verifySchema.parse(body)
 
     const db = await getDatabase()
     const payments = db.collection('payments')
@@ -183,6 +184,69 @@ export async function POST(request: NextRequest) {
         if (creemResponse?.status === 404) {
           // 如果 checkoutId 是 Stripe 格式（ch_ 开头），可能 Creem 使用 Stripe
           const isStripeFormat = payment.creemCheckoutId?.startsWith('ch_')
+          
+          // 如果用户强制完成且是 Stripe 格式，直接更新数据库
+          if (forceComplete && isStripeFormat && payment.status === 'pending') {
+            console.log('强制完成支付（Stripe 格式，无法通过 API 验证）:', {
+              paymentId: payment._id.toString(),
+              checkoutId: payment.creemCheckoutId,
+            })
+            
+            // 更新支付状态
+            await payments.updateOne(
+              { _id: payment._id },
+              {
+                $set: {
+                  status: 'completed',
+                  completedAt: new Date(),
+                  manuallyCompleted: true,
+                  forceCompleted: true, // 标记为强制完成
+                },
+              }
+            )
+
+            // 更新用户金币
+            const users = db.collection('users')
+            let userId: ObjectId
+            try {
+              userId = new ObjectId(payment.userId)
+            } catch {
+              return NextResponse.json(
+                { error: '无效的用户 ID' },
+                { status: 400 }
+              )
+            }
+
+            const updateResult = await users.updateOne(
+              { _id: userId },
+              {
+                $inc: { coins: payment.coins },
+                $push: {
+                  rechargeHistory: {
+                    amount: payment.amount,
+                    coins: payment.coins,
+                    timestamp: new Date(),
+                    paymentMethod: 'creem',
+                  },
+                } as any,
+              }
+            )
+
+            console.log('强制完成支付成功:', {
+              paymentId: payment._id.toString(),
+              userId: payment.userId,
+              coins: payment.coins,
+              updateResult: updateResult.modifiedCount,
+            })
+
+            return NextResponse.json({
+              success: true,
+              status: 'completed',
+              message: '支付已强制完成（无法通过 API 验证，但已更新数据库）',
+              coins: payment.coins,
+              forceCompleted: true,
+            })
+          }
           
           // 对于 Stripe 格式，返回特殊状态码，让前端知道可以使用手动完成
           return NextResponse.json(

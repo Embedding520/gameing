@@ -215,6 +215,31 @@ function PaymentSuccessContent() {
         if (errorData.isStripeFormat || errorData.canManualComplete) {
           setIsStripeFormat(true)
           setError(errorData.message || errorData.suggestion || '无法通过 API 验证，但可以手动完成支付')
+          
+          // 如果用户确认支付已完成，尝试强制完成
+          if (confirm('检测到 Stripe 格式的支付，无法通过 API 验证。\n\n如果支付已完成，是否强制完成支付并更新数据库？')) {
+            // 再次调用 verify API，但这次带上 forceComplete 参数
+            const forceResponse = await fetch('/api/payment/creem/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ paymentId, forceComplete: true }),
+            })
+            
+            const forceData = await forceResponse.json()
+            if (forceResponse.ok && forceData.status === 'completed') {
+              setPaymentStatus('completed')
+              setLoading(false)
+              setTimeout(() => {
+                router.push('/')
+              }, 2000)
+              return
+            } else {
+              setError(forceData.error || '强制完成失败，请使用"手动完成支付"按钮')
+            }
+          }
         } else {
           setError(errorData.error || '验证失败，请稍后再试')
         }
