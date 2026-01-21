@@ -129,7 +129,25 @@ export async function POST(request: NextRequest) {
     
     // 根据 CREEM 示例，构建请求体
     // 优先使用产品 ID（推荐方式），如果没有产品 ID 则使用金额方式
-    const finalProductId = (CREEM_PRODUCT_ID || productId)?.trim()
+    // 确保 product_id 是有效的非空字符串
+    let finalProductId: string | undefined = undefined
+    
+    // 检查环境变量中的产品 ID
+    if (CREEM_PRODUCT_ID && typeof CREEM_PRODUCT_ID === 'string') {
+      const trimmed = CREEM_PRODUCT_ID.trim()
+      if (trimmed.length > 0) {
+        finalProductId = trimmed
+      }
+    }
+    
+    // 如果环境变量中没有，检查请求中的 productId
+    if (!finalProductId && productId && typeof productId === 'string') {
+      const trimmed = productId.trim()
+      if (trimmed.length > 0) {
+        finalProductId = trimmed
+      }
+    }
+    
     let requestBody: any
     
     // 只有当 product_id 是有效的非空字符串时才使用产品方式
@@ -137,7 +155,7 @@ export async function POST(request: NextRequest) {
       // 方式1：使用产品 ID（推荐，需要在 CREEM 仪表板中先创建产品）
       // ⚠️ 重要：使用产品 ID 时，绝对不能包含 amount、currency、cancel_url
       requestBody = {
-        product_id: finalProductId, // 已经是字符串类型
+        product_id: finalProductId, // 确保是字符串类型
         success_url: successUrl,
         metadata: {
           userId: payload.userId,
@@ -166,14 +184,23 @@ export async function POST(request: NextRequest) {
     // 使用配置的 API URL 构建端点
     const endpoint = `${CREEM_API_URL}/v1/checkouts`
 
-    // 验证请求体，确保不会同时包含两种方式的字段
+    // 最终验证请求体，确保不会同时包含两种方式的字段
+    // 如果使用产品方式，确保不包含金额相关字段
     if (requestBody.product_id) {
-      // 使用产品方式，确保不包含金额相关字段
-      delete requestBody.amount
-      delete requestBody.currency
-      delete requestBody.cancel_url
-      // 确保 product_id 是字符串
+      // 确保 product_id 是有效的字符串
       requestBody.product_id = String(requestBody.product_id).trim()
+      if (requestBody.product_id.length === 0) {
+        // 如果 product_id 是空字符串，删除它并使用金额方式
+        delete requestBody.product_id
+        requestBody.amount = Math.round(amount * 100)
+        requestBody.currency = 'usd'
+        requestBody.cancel_url = cancelUrl
+      } else {
+        // 使用产品方式，确保不包含金额相关字段
+        delete requestBody.amount
+        delete requestBody.currency
+        delete requestBody.cancel_url
+      }
     } else {
       // 使用金额方式，确保不包含 product_id
       delete requestBody.product_id
