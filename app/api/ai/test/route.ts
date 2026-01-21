@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // 测试 AI 服务配置和连接
 export async function GET(request: NextRequest) {
   try {
-    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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'
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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'
     const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
     const diagnostics = {

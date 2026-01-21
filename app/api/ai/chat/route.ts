@@ -111,7 +111,12 @@ export async function POST(req: NextRequest) {
       
       if (response.status === 401) {
         errorMessage = 'API密钥无效或已过期'
-        details = '请检查 OPENROUTER_API_KEY 是否正确，或访问 https://openrouter.ai/keys 获取新的 API Key'
+        const isUsingEnvVar = !!process.env.OPENROUTER_API_KEY
+        if (isUsingEnvVar) {
+          details = 'Vercel 环境变量中的 OPENROUTER_API_KEY 无效或已过期。请访问 https://openrouter.ai/keys 获取新的 API Key，然后在 Vercel 环境变量中更新，并重新部署。'
+        } else {
+          details = '请检查 OPENROUTER_API_KEY 配置。建议在 Vercel 环境变量中添加 OPENROUTER_API_KEY，或访问 https://openrouter.ai/keys 获取新的 API Key。'
+        }
       } else if (response.status === 429) {
         errorMessage = '请求过于频繁，请稍后再试'
         details = '已达到 API 请求频率限制，请等待一段时间后重试'
