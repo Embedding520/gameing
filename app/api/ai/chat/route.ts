@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyToken } from '@/lib/auth'
 
-const OPENROUTER_API_KEY = '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'
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || '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'
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 export async function POST(req: NextRequest) {
   try {
+    // 检查 API Key 是否配置
+    if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.length < 10) {
+      console.error('OPENROUTER_API_KEY 未正确配置')
+      return NextResponse.json(
+        { error: 'AI服务配置错误，请联系管理员' },
+        { status: 500 }
+      )
+    }
+
     // 验证用户身份
     const authHeader = req.headers.get('Authorization')
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -43,10 +52,35 @@ export async function POST(req: NextRequest) {
     })
 
     if (!response.ok) {
-      const errorData = await response.text()
-      console.error('OpenRouter API错误:', errorData)
+      let errorData: any = {}
+      try {
+        const errorText = await response.text()
+        errorData = JSON.parse(errorText)
+      } catch {
+        errorData = { message: 'API 请求失败' }
+      }
+      
+      console.error('OpenRouter API错误:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      })
+      
+      // 提供更详细的错误信息
+      let errorMessage = 'AI服务暂时不可用，请稍后重试'
+      if (response.status === 401) {
+        errorMessage = 'API密钥无效，请检查配置'
+      } else if (response.status === 429) {
+        errorMessage = '请求过于频繁，请稍后再试'
+      } else if (response.status === 500) {
+        errorMessage = 'AI服务暂时不可用，请稍后重试'
+      }
+      
       return NextResponse.json(
-        { error: 'AI服务暂时不可用，请稍后重试' },
+        { 
+          error: errorMessage,
+          details: errorData.message || errorData.error || '未知错误',
+        },
         { status: response.status }
       )
     }

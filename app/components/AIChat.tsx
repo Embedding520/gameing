@@ -79,7 +79,10 @@ export default function AIChat({ onClose }: AIChatProps) {
         }
         setMessages((prev) => [...prev, assistantMessage])
       } else {
-        alert(data.error || '发送失败，请稍后重试')
+        // 显示更详细的错误信息
+        const errorMsg = data.error || '发送失败，请稍后重试'
+        const details = data.details ? `\n详情: ${data.details}` : ''
+        alert(`${errorMsg}${details}`)
         // 移除用户消息，因为发送失败
         setMessages((prev) => prev.slice(0, -1))
       }

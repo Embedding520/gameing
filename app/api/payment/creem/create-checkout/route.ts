@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
 
     const CREEM_API_KEY = process.env.CREEM_API_KEY
     const CREEM_API_URL = process.env.CREEM_API_URL || 'https://api.creem.io'
-    const CREEM_PRODUCT_ID = process.env.CREEM_PRODUCT_ID || productId // 优先使用环境变量中的产品 ID
+    // 只有当环境变量存在且非空时才使用产品 ID
+    const CREEM_PRODUCT_ID = process.env.CREEM_PRODUCT_ID?.trim() || productId?.trim() || undefined
     
     if (!CREEM_API_KEY) {
       return NextResponse.json(
