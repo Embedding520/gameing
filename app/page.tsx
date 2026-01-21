@@ -118,9 +118,22 @@ export default function Home() {
         // 跳转到 CREEM 支付页面
         window.location.href = data.checkoutUrl
       } else {
-        const errorMsg = data.message || data.error || '创建支付链接失败'
+        // 处理错误消息
+        let errorMsg = data.message || data.error || '创建支付链接失败'
+        
+        // 如果是 403 错误，提供更详细的说明
+        if (response.status === 403 || errorMsg.includes('CREEM_API_KEY')) {
+          errorMsg = `支付服务配置错误：\n\n${errorMsg}\n\n请检查：\n1. Vercel 环境变量中是否已配置 CREEM_API_KEY\n2. API Key 是否正确且有权限\n3. 联系管理员检查支付服务配置`
+        }
+        
         alert(errorMsg)
-        console.error('支付链接创建失败:', data)
+        console.error('支付链接创建失败:', {
+          status: response.status,
+          error: data.error,
+          message: data.message,
+          details: data.details,
+          debugInfo: data.debugInfo,
+        })
       }
     } catch (error) {
       console.error('创建支付链接失败:', error)
