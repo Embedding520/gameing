@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { GAMES, GAME_ZONES, GameZone } from '@/app/games/games'
@@ -54,10 +54,18 @@ export default function Home() {
     }
 
     setUser(JSON.parse(userStr))
+    // 立即获取最新用户信息（包括从支付页面返回后）
     fetchUserInfo()
-  }, [router])
+    
+    // 定期刷新用户信息（每30秒）
+    const interval = setInterval(() => {
+      fetchUserInfo()
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [router, fetchUserInfo])
 
-  const fetchUserInfo = async () => {
+  const fetchUserInfo = useCallback(async () => {
     const token = localStorage.getItem('token')
     if (!token) return
 
@@ -66,15 +74,18 @@ export default function Home() {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        cache: 'no-store', // 确保获取最新数据
       })
       if (response.ok) {
         const data = await response.json()
         setUser(data.user)
+        // 更新 localStorage 中的用户信息
+        localStorage.setItem('user', JSON.stringify(data.user))
       }
     } catch (error) {
       console.error('获取用户信息失败:', error)
     }
-  }
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('token')

@@ -61,10 +61,10 @@ function PaymentSuccessContent() {
             if (verifyData.status === 'completed') {
               setPaymentStatus('completed')
               setLoading(false)
-              // 刷新用户信息
+              // 支付成功，等待几秒后跳转到首页
               setTimeout(() => {
-                window.location.reload()
-              }, 1000)
+                router.push('/')
+              }, 2000)
               return
             } else if (verifyData.error) {
               setError(verifyData.error)
@@ -92,10 +92,11 @@ function PaymentSuccessContent() {
 
           if (data.status === 'completed') {
             setLoading(false)
-            // 支付成功，刷新页面以更新用户信息
+            setPaymentStatus('completed')
+            // 支付成功，等待几秒后跳转到首页
             setTimeout(() => {
-              window.location.reload()
-            }, 1000)
+              router.push('/')
+            }, 2000)
           } else if (data.status === 'pending') {
             pollCountRef.current++
             if (pollCountRef.current < maxPolls) {
@@ -183,8 +184,13 @@ function PaymentSuccessContent() {
         }
       } else {
         const errorData = data
-        setError(errorData.error || '验证失败，请稍后再试')
-        setIsStripeFormat(errorData.isStripeFormat || false)
+        // 如果检测到 Stripe 格式或允许手动完成，显示手动完成按钮
+        if (errorData.isStripeFormat || errorData.canManualComplete) {
+          setIsStripeFormat(true)
+          setError(errorData.message || errorData.suggestion || '无法通过 API 验证，但可以手动完成支付')
+        } else {
+          setError(errorData.error || '验证失败，请稍后再试')
+        }
         console.error('验证失败:', errorData)
       }
     } catch (error: any) {
@@ -228,10 +234,10 @@ function PaymentSuccessContent() {
       if (response.ok && data.status === 'completed') {
         setPaymentStatus('completed')
         setLoading(false)
-        // 刷新页面以更新用户信息
+        // 支付成功，等待几秒后跳转到首页
         setTimeout(() => {
-          window.location.reload()
-        }, 1000)
+          router.push('/')
+        }, 2000)
       } else {
         setError(data.error || '手动完成失败，请稍后再试')
         console.error('手动完成失败:', data)
@@ -270,7 +276,22 @@ function PaymentSuccessContent() {
             <div style={{ fontSize: '64px', marginBottom: '20px' }}>✅</div>
             <h1 style={{ marginBottom: '20px', color: '#4CAF50' }}>支付成功！</h1>
             <p style={{ color: '#666', marginBottom: '20px' }}>金币已添加到您的账户</p>
-            <p style={{ color: '#999', fontSize: '14px' }}>正在返回游戏...</p>
+            <p style={{ color: '#999', fontSize: '14px', marginBottom: '20px' }}>正在返回游戏...</p>
+            <button
+              onClick={() => router.push('/')}
+              style={{
+                padding: '12px 24px',
+                background: '#4CAF50',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: 'bold',
+              }}
+            >
+              立即返回
+            </button>
           </>
         ) : !paymentId ? (
           <>
@@ -336,7 +357,7 @@ function PaymentSuccessContent() {
               >
                 {verifying ? '验证中...' : '手动验证支付'}
               </button>
-              {isStripeFormat && (
+              {(isStripeFormat || (error && (error.includes('Stripe') || error.includes('无法通过 API')))) && (
                 <button
                   onClick={handleManualComplete}
                   disabled={verifying || completing}
