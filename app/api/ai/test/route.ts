@@ -32,54 +32,86 @@ export async function GET(request: NextRequest) {
     // 测试 API 连接
     if (OPENROUTER_API_KEY && OPENROUTER_API_KEY.length >= 10) {
       try {
-        const testResponse = await fetch(OPENROUTER_API_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'xiaomi/mimo-v2-flash:free',
-            messages: [
-              {
-                role: 'user',
-                content: '你好',
-              },
-            ],
-          }),
-        })
-
-        const responseText = await testResponse.text()
-        let responseData: any = {}
+        // 尝试多个免费模型
+        const testModels = [
+          'xiaomi/mimo-v2-flash:free',
+          'google/gemini-flash-1.5:free',
+          'meta-llama/llama-3.2-3b-instruct:free',
+        ]
         
-        try {
-          responseData = JSON.parse(responseText)
-        } catch {
-          responseData = { raw: responseText }
+        let testResult: any = null
+        
+        // 尝试第一个模型
+        for (const model of testModels) {
+          try {
+            const testResponse = await fetch(OPENROUTER_API_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: model,
+                messages: [
+                  {
+                    role: 'user',
+                    content: '你好',
+                  },
+                ],
+              }),
+            })
+            
+            const responseText = await testResponse.text()
+            let responseData: any = {}
+            
+            try {
+              responseData = JSON.parse(responseText)
+            } catch {
+              responseData = { raw: responseText }
+            }
+            
+            testResult = {
+              model: model,
+              status: testResponse.status,
+              statusText: testResponse.statusText,
+              ok: testResponse.ok,
+              response: responseData,
+            }
+            
+            // 如果成功，停止尝试其他模型
+            if (testResponse.ok) {
+              break
+            }
+          } catch (error: any) {
+            // 继续尝试下一个模型
+            continue
+          }
         }
-
-        diagnostics.testResult = {
-          status: testResponse.status,
-          statusText: testResponse.statusText,
-          ok: testResponse.ok,
-          response: responseData,
+        
+        if (!testResult) {
+          throw new Error('所有模型测试都失败')
         }
+        
+        diagnostics.testResult = testResult
 
-        if (testResponse.status === 401) {
+        if (testResult.status === 401) {
           diagnostics.issues.push('❌ API Key 无效或已过期')
           diagnostics.suggestions.push(
             '1. 检查 API Key 是否正确',
             '2. 访问 https://openrouter.ai/keys 获取新的 API Key',
             '3. 在 Vercel 环境变量中更新 OPENROUTER_API_KEY'
           )
-        } else if (testResponse.status === 429) {
+        } else if (testResult.status === 429) {
           diagnostics.issues.push('⚠️ API 请求频率限制')
           diagnostics.suggestions.push('等待一段时间后重试，或升级 OpenRouter 账户')
-        } else if (!testResponse.ok) {
-          diagnostics.issues.push(`⚠️ API 返回错误: ${testResponse.status} ${testResponse.statusText}`)
+        } else if (!testResult.ok) {
+          diagnostics.issues.push(`⚠️ API 返回错误: ${testResult.status} ${testResult.statusText}`)
           diagnostics.suggestions.push('检查 OpenRouter API 状态或联系支持')
+          if (testResult.response?.error?.message) {
+            diagnostics.suggestions.push(`错误详情: ${testResult.response.error.message}`)
+          }
         } else {
-          diagnostics.suggestions.push('✅ AI 服务连接测试成功！')
+          diagnostics.suggestions.push(`✅ AI 服务连接测试成功！使用的模型: ${testResult.model}`)
         }
       } catch (error: any) {
         diagnostics.testResult = {

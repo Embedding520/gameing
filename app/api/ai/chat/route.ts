@@ -36,50 +36,83 @@ export async function POST(req: NextRequest) {
     }
 
     // 调用OpenRouter API
+    // 尝试多个免费模型，如果第一个失败可以尝试其他
+    const models = [
+      'xiaomi/mimo-v2-flash:free',
+      'google/gemini-flash-1.5:free',
+      'meta-llama/llama-3.2-3b-instruct:free',
+    ]
+    
+    const selectedModel = process.env.OPENROUTER_MODEL || models[0]
+    
+    const requestBody = {
+      model: selectedModel,
+      messages: messages,
+      // 只有某些模型支持 reasoning，如果模型不支持会自动忽略
+      ...(selectedModel.includes('mimo') ? { reasoning: { enabled: true } } : {}),
+    }
+    
+    console.log('OpenRouter API 请求:', {
+      model: requestBody.model,
+      messageCount: messages.length,
+      apiKeyPrefix: OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 20)}...` : '未设置',
+      usingEnvVar: !!process.env.OPENROUTER_API_KEY,
+    })
+    
     const response = await fetch(OPENROUTER_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
       },
-      body: JSON.stringify({
-        model: 'xiaomi/mimo-v2-flash:free',
-        messages: messages,
-        reasoning: {
-          enabled: true
-        }
-      }),
+      body: JSON.stringify(requestBody),
     })
 
     if (!response.ok) {
       let errorData: any = {}
+      let errorText = ''
       try {
-        const errorText = await response.text()
+        errorText = await response.text()
         errorData = JSON.parse(errorText)
       } catch {
-        errorData = { message: 'API 请求失败' }
+        errorData = { message: errorText || 'API 请求失败' }
       }
       
       console.error('OpenRouter API错误:', {
         status: response.status,
         statusText: response.statusText,
         error: errorData,
+        errorText: errorText,
+        apiKeyPrefix: OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 20)}...` : '未设置',
+        usingEnvVar: !!process.env.OPENROUTER_API_KEY,
       })
       
       // 提供更详细的错误信息
       let errorMessage = 'AI服务暂时不可用，请稍后重试'
+      let details = errorData.message || errorData.error || errorText || '未知错误'
+      
       if (response.status === 401) {
-        errorMessage = 'API密钥无效，请检查配置'
+        errorMessage = 'API密钥无效或已过期'
+        details = '请检查 OPENROUTER_API_KEY 是否正确，或访问 https://openrouter.ai/keys 获取新的 API Key'
       } else if (response.status === 429) {
         errorMessage = '请求过于频繁，请稍后再试'
-      } else if (response.status === 500) {
-        errorMessage = 'AI服务暂时不可用，请稍后重试'
+        details = '已达到 API 请求频率限制，请等待一段时间后重试'
+      } else if (response.status === 400) {
+        errorMessage = '请求参数错误'
+        details = errorData.message || '请检查请求格式是否正确'
+      } else if (response.status === 404) {
+        errorMessage = '模型不可用'
+        details = '当前模型可能已下线，请稍后重试或联系管理员'
+      } else if (response.status >= 500) {
+        errorMessage = 'AI服务暂时不可用'
+        details = 'OpenRouter 服务器错误，请稍后重试'
       }
       
       return NextResponse.json(
         { 
           error: errorMessage,
-          details: errorData.message || errorData.error || '未知错误',
+          details: details,
+          status: response.status,
         },
         { status: response.status }
       )
