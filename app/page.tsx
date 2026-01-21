@@ -121,19 +121,46 @@ export default function Home() {
         // 处理错误消息
         let errorMsg = data.message || data.error || '创建支付链接失败'
         
-        // 如果是 403 错误，提供更详细的说明
-        if (response.status === 403 || errorMsg.includes('CREEM_API_KEY')) {
-          errorMsg = `支付服务配置错误：\n\n${errorMsg}\n\n请检查：\n1. Vercel 环境变量中是否已配置 CREEM_API_KEY\n2. API Key 是否正确且有权限\n3. 联系管理员检查支付服务配置`
-        }
-        
-        alert(errorMsg)
+        // 记录详细错误信息到控制台
         console.error('支付链接创建失败:', {
           status: response.status,
           error: data.error,
           message: data.message,
           details: data.details,
           debugInfo: data.debugInfo,
+          suggestions: data.suggestions,
+          fullResponse: data,
         })
+        
+        // 如果是 403 错误，提供更详细的说明
+        if (response.status === 403 || errorMsg.includes('CREEM_API_KEY')) {
+          const diagnoseUrl = `${window.location.origin}/api/payment/creem/diagnose`
+          let detailedMsg = `支付服务配置错误 (403 Forbidden)\n\n${errorMsg}\n\n`
+          
+          // 添加 Creem 返回的详细信息
+          if (data.details) {
+            detailedMsg += `\nCreem API 返回详情：\n${JSON.stringify(data.details, null, 2)}\n`
+          }
+          
+          // 添加调试信息
+          if (data.debugInfo) {
+            detailedMsg += `\n调试信息：\n`
+            if (data.debugInfo.apiUrl) detailedMsg += `- API URL: ${data.debugInfo.apiUrl}\n`
+            if (data.debugInfo.apiKeyPrefix) detailedMsg += `- API Key 前缀: ${data.debugInfo.apiKeyPrefix}\n`
+            if (data.debugInfo.endpoint) detailedMsg += `- 端点: ${data.debugInfo.endpoint}\n`
+          }
+          
+          // 添加建议
+          if (data.suggestions && data.suggestions.length > 0) {
+            detailedMsg += `\n建议：\n${data.suggestions.join('\n')}\n`
+          }
+          
+          detailedMsg += `\n访问诊断工具检查配置：\n${diagnoseUrl}`
+          
+          errorMsg = detailedMsg
+        }
+        
+        alert(errorMsg)
       }
     } catch (error) {
       console.error('创建支付链接失败:', error)
