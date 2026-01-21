@@ -89,20 +89,17 @@ export async function POST(request: NextRequest) {
     const cancelUrl = `${baseUrl}/payment/cancel?payment_id=${paymentRecord.insertedId.toString()}`
     
     // 根据 CREEM 示例，构建请求体
-    // 优先使用产品 ID（推荐方式），但如果 403 错误，可以尝试使用金额方式
-    const finalProductId = CREEM_PRODUCT_ID || productId
+    // 优先使用产品 ID（推荐方式），如果没有产品 ID 则使用金额方式
+    const finalProductId = (CREEM_PRODUCT_ID || productId)?.trim()
     let requestBody: any
     
-    // 现在认证已修复，可以使用产品 ID 方式
-    const USE_PRODUCT_ID = true // 使用产品 ID 方式
-    
-    if (finalProductId && USE_PRODUCT_ID) {
+    // 只有当 product_id 是有效的非空字符串时才使用产品方式
+    if (finalProductId && finalProductId.length > 0) {
       // 方式1：使用产品 ID（推荐，需要在 CREEM 仪表板中先创建产品）
-      // 根据错误信息，使用产品 ID 时不应该包含 amount、currency、cancel_url
+      // ⚠️ 重要：使用产品 ID 时，绝对不能包含 amount、currency、cancel_url
       requestBody = {
-        product_id: String(finalProductId), // 确保是字符串类型
+        product_id: finalProductId, // 已经是字符串类型
         success_url: successUrl,
-        // 注意：使用产品 ID 时不应该包含 cancel_url
         metadata: {
           userId: payload.userId,
           paymentId: paymentRecord.insertedId.toString(),
@@ -112,6 +109,7 @@ export async function POST(request: NextRequest) {
       console.log('使用产品 ID 创建支付链接:', finalProductId)
     } else {
       // 方式2：使用金额（一次性支付，金额以分为单位）
+      // ⚠️ 重要：使用金额方式时，不能包含 product_id
       requestBody = {
         amount: Math.round(amount * 100), // CREEM 使用分为单位（cents）
         currency: 'usd',
@@ -129,12 +127,25 @@ export async function POST(request: NextRequest) {
     // 使用配置的 API URL 构建端点
     const endpoint = `${CREEM_API_URL}/v1/checkouts`
 
+    // 验证请求体，确保不会同时包含两种方式的字段
+    if (requestBody.product_id) {
+      // 使用产品方式，确保不包含金额相关字段
+      delete requestBody.amount
+      delete requestBody.currency
+      delete requestBody.cancel_url
+      // 确保 product_id 是字符串
+      requestBody.product_id = String(requestBody.product_id).trim()
+    } else {
+      // 使用金额方式，确保不包含 product_id
+      delete requestBody.product_id
+    }
+    
     console.log('CREEM API 请求详情:', {
       apiUrl: CREEM_API_URL,
       endpoint,
       apiKey: CREEM_API_KEY ? `${CREEM_API_KEY.substring(0, 20)}...` : '未设置',
       apiKeyPrefix: CREEM_API_KEY?.substring(0, 10),
-      requestBody,
+      requestBody: JSON.stringify(requestBody, null, 2), // 格式化输出以便调试
       usingProduct: !!finalProductId,
       productId: finalProductId,
       headers: {
@@ -182,7 +193,46 @@ export async function POST(request: NextRequest) {
       )
 
       // 针对不同错误提供详细的提示
-      if (creemResponse.status === 403) {
+      if (creemResponse.status === 400) {
+        // 参数验证错误
+        const errorMessage = errorData.message || JSON.stringify(errorData)
+        const isProductIdError = errorMessage.includes('product_id')
+        const hasConflictingFields = errorMessage.includes('should not exist')
+        
+        return NextResponse.json(
+          { 
+            error: 'CREEM API 参数错误 (400 Bad Request)',
+            message: errorMessage,
+            details: errorData,
+            suggestions: hasConflictingFields ? [
+              '⚠️ 检测到参数冲突错误',
+              isProductIdError ? [
+                '如果使用 product_id，请确保：',
+                '1. 在 Vercel 环境变量中设置 CREEM_PRODUCT_ID（或通过请求传递 productId）',
+                '2. 不要同时传递 amount、currency、cancel_url',
+                '3. product_id 必须是有效的字符串',
+                '',
+                '如果不想使用 product_id，请：',
+                '1. 删除或清空 CREEM_PRODUCT_ID 环境变量',
+                '2. 使用金额方式（不传递 productId）',
+              ] : [
+                '检查请求参数是否符合 CREEM API 要求',
+                '确认 product_id 和 amount 方式不能同时使用',
+              ],
+            ] : [
+              '检查请求参数格式',
+              '确认所有必需字段都已提供',
+              '查看 CREEM API 文档了解正确的参数格式',
+            ],
+            debugInfo: {
+              usingProductId: !!finalProductId,
+              productId: finalProductId,
+              requestBody,
+            },
+          },
+          { status: 400 }
+        )
+      } else if (creemResponse.status === 403) {
         return NextResponse.json(
           { 
             error: 'CREEM API 认证失败 (403 Forbidden)',
