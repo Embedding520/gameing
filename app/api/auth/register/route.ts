@@ -34,6 +34,10 @@ export async function POST(request: NextRequest) {
       totalScore: 0,
       level: 1,
       rechargeHistory: [],
+      checkinHistory: [], // 签到历史
+      lastCheckinDate: null, // 最后签到日期
+      consecutiveCheckinDays: 0, // 连续签到天数
+      favoriteGames: [], // 收藏的游戏
     })
 
     const token = generateToken({

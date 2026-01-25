@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import BackgroundStyle1 from '@/app/components/BackgroundStyle1'
 import BackgroundStyle2 from '@/app/components/BackgroundStyle2'
 import BackgroundStyle3 from '@/app/components/BackgroundStyle3'
+import BackgroundStyle4 from '@/app/components/BackgroundStyle4'
+import BackgroundStyle5 from '@/app/components/BackgroundStyle5'
+import BackgroundStyle6 from '@/app/components/BackgroundStyle6'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -13,12 +16,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [backgroundStyle, setBackgroundStyle] = useState<'style1' | 'style2' | 'style3'>('style1')
+  const [backgroundStyle, setBackgroundStyle] = useState<'style1' | 'style2' | 'style3' | 'style4' | 'style5' | 'style6'>('style1')
 
   useEffect(() => {
     // 从localStorage加载保存的背景风格
-    const savedStyle = localStorage.getItem('backgroundStyle') as 'style1' | 'style2' | 'style3'
-    if (savedStyle && ['style1', 'style2', 'style3'].includes(savedStyle)) {
+    const savedStyle = localStorage.getItem('backgroundStyle') as 'style1' | 'style2' | 'style3' | 'style4' | 'style5' | 'style6'
+    if (savedStyle && ['style1', 'style2', 'style3', 'style4', 'style5', 'style6'].includes(savedStyle)) {
       setBackgroundStyle(savedStyle)
     }
   }, [])
@@ -68,6 +71,9 @@ export default function LoginPage() {
       {backgroundStyle === 'style1' && <BackgroundStyle1 />}
       {backgroundStyle === 'style2' && <BackgroundStyle2 />}
       {backgroundStyle === 'style3' && <BackgroundStyle3 />}
+      {backgroundStyle === 'style4' && <BackgroundStyle4 />}
+      {backgroundStyle === 'style5' && <BackgroundStyle5 />}
+      {backgroundStyle === 'style6' && <BackgroundStyle6 />}
       <div style={{
         background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
         padding: '50px',

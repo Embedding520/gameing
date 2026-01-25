@@ -3,6 +3,9 @@ import { ObjectId } from 'mongodb'
 import { getDatabase } from '@/lib/db'
 import crypto from 'crypto'
 
+// 强制动态渲染，确保 webhook 能正确处理
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const CREEM_WEBHOOK_SECRET = process.env.CREEM_WEBHOOK_SECRET

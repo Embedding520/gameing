@@ -14,3 +14,18 @@ body[data-bg-style="style2"] {
 body[data-bg-style="style3"] {
   background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4a90e2 100%);
 }
+
+/* 风格4：森林风格 */
+body[data-bg-style="style4"] {
+  background: linear-gradient(135deg, #134e5e 0%, #71b280 50%, #a8e6cf 100%);
+}
+
+/* 风格5：霓虹风格 */
+body[data-bg-style="style5"] {
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+}
+
+/* 风格6：极光风格 */
+body[data-bg-style="style6"] {
+  background: linear-gradient(135deg, #000428 0%, #004e92 50%, #009ffd 100%);
+}

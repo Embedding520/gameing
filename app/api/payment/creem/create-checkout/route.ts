@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // 创建支付记录
     const payments = db.collection('payments')
-    const paymentRecord = await payments.insertOne({
+    const paymentData = {
       userId: payload.userId,
       username: payload.username,
       amount,
@@ -95,6 +95,20 @@ export async function POST(request: NextRequest) {
       status: 'pending',
       paymentMethod: 'creem',
       createdAt: new Date(),
+    }
+    
+    console.log('准备创建支付记录:', {
+      userId: paymentData.userId,
+      username: paymentData.username,
+      amount: paymentData.amount,
+      coins: paymentData.coins,
+    })
+    
+    const paymentRecord = await payments.insertOne(paymentData)
+    
+    console.log('支付记录创建成功:', {
+      paymentId: paymentRecord.insertedId.toString(),
+      insertedId: paymentRecord.insertedId,
     })
 
     // 调用 CREEM API 创建支付链接
@@ -388,7 +402,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 更新支付记录，保存 CREEM checkout ID
-    await payments.updateOne(
+    const updateResult = await payments.updateOne(
       { _id: paymentRecord.insertedId },
       { 
         $set: { 
@@ -397,6 +411,28 @@ export async function POST(request: NextRequest) {
         } 
       }
     )
+    
+    console.log('支付记录更新结果:', {
+      paymentId: paymentRecord.insertedId.toString(),
+      checkoutId,
+      matchedCount: updateResult.matchedCount,
+      modifiedCount: updateResult.modifiedCount,
+    })
+    
+    // 验证支付记录是否已保存
+    const savedPayment = await payments.findOne({ _id: paymentRecord.insertedId })
+    if (!savedPayment) {
+      console.error('警告：支付记录创建后未找到！', {
+        paymentId: paymentRecord.insertedId.toString(),
+      })
+    } else {
+      console.log('支付记录验证成功:', {
+        paymentId: savedPayment._id.toString(),
+        userId: savedPayment.userId,
+        status: savedPayment.status,
+        creemCheckoutId: savedPayment.creemCheckoutId,
+      })
+    }
 
     return NextResponse.json({
       success: true,

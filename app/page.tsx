@@ -1,17 +1,26 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo, memo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { GAMES, GAME_ZONES, GameZone } from '@/app/games/games'
 import BackgroundStyle1 from '@/app/components/BackgroundStyle1'
 import BackgroundStyle2 from '@/app/components/BackgroundStyle2'
 import BackgroundStyle3 from '@/app/components/BackgroundStyle3'
+import BackgroundStyle4 from '@/app/components/BackgroundStyle4'
+import BackgroundStyle5 from '@/app/components/BackgroundStyle5'
+import BackgroundStyle6 from '@/app/components/BackgroundStyle6'
 import BackgroundSelector from '@/app/components/BackgroundSelector'
 import Forum from '@/app/components/Forum'
 import AIChat from '@/app/components/AIChat'
+import Agent from '@/app/components/Agent'
 import VideoGenerator from '@/app/components/VideoGenerator'
+import ImageGenerator from '@/app/components/ImageGenerator'
 import Leaderboard from '@/app/components/Leaderboard'
+import DailyCheckin from '@/app/components/DailyCheckin'
+import SoundControl from '@/app/components/SoundControl'
+import LoadingSpinner, { PageLoader } from '@/app/components/LoadingSpinner'
+import { SkeletonGameList } from '@/app/components/Skeleton'
 
 interface User {
   id: string
@@ -24,19 +33,26 @@ interface User {
 export default function Home() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
-  const [backgroundStyle, setBackgroundStyle] = useState<'style1' | 'style2' | 'style3'>('style1')
+  const [backgroundStyle, setBackgroundStyle] = useState<'style1' | 'style2' | 'style3' | 'style4' | 'style5' | 'style6'>('style1')
   const [showRecharge, setShowRecharge] = useState(false)
   const [rechargeAmount, setRechargeAmount] = useState(100)
   const [showForum, setShowForum] = useState(false)
   const [showAIChat, setShowAIChat] = useState(false)
+  const [showAgent, setShowAgent] = useState(false)
   const [showVideoGenerator, setShowVideoGenerator] = useState(false)
+  const [showImageGenerator, setShowImageGenerator] = useState(false)
   const [showLeaderboard, setShowLeaderboard] = useState(false)
   const [selectedZone, setSelectedZone] = useState<GameZone | '全部'>('全部')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [favoriteGames, setFavoriteGames] = useState<string[]>([])
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [isLoadingGames, setIsLoadingGames] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
 
   useEffect(() => {
     // 从localStorage加载保存的背景风格
-    const savedStyle = localStorage.getItem('backgroundStyle') as 'style1' | 'style2' | 'style3'
-    if (savedStyle && ['style1', 'style2', 'style3'].includes(savedStyle)) {
+    const savedStyle = localStorage.getItem('backgroundStyle') as 'style1' | 'style2' | 'style3' | 'style4' | 'style5' | 'style6'
+    if (savedStyle && ['style1', 'style2', 'style3', 'style4', 'style5', 'style6'].includes(savedStyle)) {
       setBackgroundStyle(savedStyle)
       document.body.setAttribute('data-bg-style', savedStyle)
     } else {
@@ -78,14 +94,64 @@ export default function Home() {
     setUser(JSON.parse(userStr))
     // 立即获取最新用户信息（包括从支付页面返回后）
     fetchUserInfo()
+    fetchFavoriteGames()
     
-    // 定期刷新用户信息（每30秒）
+    // 定期刷新用户信息（每60秒，减少频率以提升性能）
     const interval = setInterval(() => {
       fetchUserInfo()
-    }, 30000)
+    }, 60000)
     
     return () => clearInterval(interval)
   }, [router, fetchUserInfo])
+
+  const fetchFavoriteGames = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    try {
+      const response = await fetch('/api/games/favorite', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFavoriteGames(data.favoriteGames || [])
+      }
+    } catch (error) {
+      console.error('获取收藏列表失败:', error)
+    }
+  }
+
+  const toggleFavorite = useCallback(async (gameId: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const token = localStorage.getItem('token')
+    if (!token) return
+
+    const isFavorite = favoriteGames.includes(gameId)
+    const action = isFavorite ? 'remove' : 'add'
+
+    try {
+      const response = await fetch('/api/games/favorite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ gameId, action }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setFavoriteGames(data.favoriteGames || [])
+      }
+    } catch (error) {
+      console.error('更新收藏失败:', error)
+    }
+  }, [favoriteGames])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -93,11 +159,44 @@ export default function Home() {
     router.push('/login')
   }
 
+  // 使用 useMemo 缓存过滤后的游戏列表，减少重复计算
+  const filteredGames = useMemo(() => {
+    return GAME_ZONES.map((zone) => {
+      let zoneGames = GAMES.filter(game => game.zone === zone.id)
+      
+      // 应用搜索过滤
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        zoneGames = zoneGames.filter(game =>
+          game.name.toLowerCase().includes(query) ||
+          game.description.toLowerCase().includes(query)
+        )
+      }
+      
+      // 应用收藏过滤
+      if (showFavoritesOnly) {
+        zoneGames = zoneGames.filter(game => favoriteGames.includes(game.id))
+      }
+      
+      return { zone, games: zoneGames }
+    }).filter(({ zone, games }) => {
+      if (selectedZone !== '全部' && selectedZone !== zone.id) return false
+      return games.length > 0
+    })
+  }, [searchQuery, showFavoritesOnly, favoriteGames, selectedZone])
+
   const handleRecharge = async () => {
     const token = localStorage.getItem('token')
     if (!token) return
 
     try {
+      // 保存支付信息到 localStorage，以便支付成功页面使用
+      localStorage.setItem('pendingPayment', JSON.stringify({
+        amount: rechargeAmount,
+        coins: rechargeAmount,
+        timestamp: Date.now(),
+      }))
+
       // 使用 CREEM 支付创建支付链接
       const response = await fetch('/api/payment/creem/create-checkout', {
         method: 'POST',
@@ -169,29 +268,7 @@ export default function Home() {
   }
 
   if (!user) {
-    return (
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '50px', 
-        color: '#fff',
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        fontWeight: 'bold'
-      }}>
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          backdropFilter: 'blur(10px)',
-          padding: '30px 50px',
-          borderRadius: '20px',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
-        }}>
-          加载中...
-        </div>
-      </div>
-    )
+    return <PageLoader />
   }
 
   return (
@@ -212,11 +289,17 @@ export default function Home() {
       {backgroundStyle === 'style1' && <BackgroundStyle1 />}
       {backgroundStyle === 'style2' && <BackgroundStyle2 />}
       {backgroundStyle === 'style3' && <BackgroundStyle3 />}
+      {backgroundStyle === 'style4' && <BackgroundStyle4 />}
+      {backgroundStyle === 'style5' && <BackgroundStyle5 />}
+      {backgroundStyle === 'style6' && <BackgroundStyle6 />}
+      {backgroundStyle === 'style4' && <BackgroundStyle4 />}
+      {backgroundStyle === 'style5' && <BackgroundStyle5 />}
+      {backgroundStyle === 'style6' && <BackgroundStyle6 />}
 
       {/* 顶部信息栏 */}
       <div style={{
         background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(10px)',
+        // backdropFilter: 'blur(10px)', // 禁用以提升性能
         padding: '20px 35px',
         borderRadius: '20px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
@@ -228,7 +311,8 @@ export default function Home() {
         flexWrap: 'wrap',
         gap: '20px',
         border: '1px solid rgba(255, 255, 255, 0.3)',
-        animation: 'slideIn 0.5s ease-out'
+        animation: 'slideIn 0.5s ease-out',
+        marginTop: '60px', // 为背景风格按钮留出空间
       }}>
         <div style={{ display: 'flex', gap: '25px', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{
@@ -323,8 +407,35 @@ export default function Home() {
             🤖 AI助手
           </button>
           <button
+            onClick={() => setShowAgent(true)}
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(79, 172, 254, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(79, 172, 254, 0.5)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(79, 172, 254, 0.4)'
+            }}
+          >
+            🎯 智能体
+          </button>
+          {/* 视频生成按钮 - 暂时隐藏，功能保留 */}
+          <button
             onClick={() => setShowVideoGenerator(true)}
             style={{
+              display: 'none', // 隐藏按钮，但保留功能代码
               padding: '10px 20px',
               background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
               color: 'white',
@@ -347,6 +458,32 @@ export default function Home() {
           >
             🎬 视频生成
           </button>
+          <button
+            onClick={() => setShowImageGenerator(true)}
+            style={{
+              padding: '10px 20px',
+              background: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+              color: '#333',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              boxShadow: '0 4px 15px rgba(168, 237, 234, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)'
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(168, 237, 234, 0.5)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)'
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(168, 237, 234, 0.4)'
+            }}
+          >
+            🎨 图片生成
+          </button>
+          <DailyCheckin />
           <button
             onClick={() => setShowLeaderboard(true)}
             style={{
@@ -479,6 +616,97 @@ export default function Home() {
         </p>
       </div>
 
+      {/* 搜索框和筛选 */}
+      <div style={{
+        width: '100%',
+        maxWidth: '1200px',
+        padding: '0 20px',
+        marginBottom: '20px',
+      }}>
+        <div style={{
+          display: 'flex',
+          gap: '15px',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}>
+          {/* 搜索框 */}
+          <div style={{
+            flex: 1,
+            minWidth: '250px',
+            position: 'relative',
+          }}>
+            <input
+              type="text"
+              placeholder="🔍 搜索游戏..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '14px 20px 14px 50px',
+                background: 'rgba(255, 255, 255, 0.95)',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '16px',
+                fontSize: '16px',
+                outline: 'none',
+                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.3s ease',
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = '#667eea'
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(102, 126, 234, 0.3)'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)'
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.1)'
+              }}
+            />
+            <span style={{
+              position: 'absolute',
+              left: '18px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              fontSize: '20px',
+            }}>
+              🔍
+            </span>
+          </div>
+
+          {/* 收藏筛选 */}
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            style={{
+              padding: '14px 24px',
+              background: showFavoritesOnly
+                ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)'
+                : 'rgba(255, 255, 255, 0.2)',
+              color: showFavoritesOnly ? '#333' : 'rgba(255, 255, 255, 0.9)',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '16px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              boxShadow: showFavoritesOnly
+                ? '0 4px 15px rgba(246, 211, 101, 0.4)'
+                : 'none',
+              transition: 'all 0.3s ease',
+              backdropFilter: 'blur(10px)',
+            }}
+            onMouseEnter={(e) => {
+              if (!showFavoritesOnly) {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showFavoritesOnly) {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+              }
+            }}
+          >
+            ⭐ {showFavoritesOnly ? '显示全部' : '仅收藏'}
+          </button>
+        </div>
+      </div>
+
       {/* 游戏区域选择 */}
       <div style={{
         display: 'flex',
@@ -566,10 +794,18 @@ export default function Home() {
         maxWidth: '1200px',
         padding: '20px'
       }}>
-        {GAME_ZONES.map((zone) => {
-          const zoneGames = GAMES.filter(game => game.zone === zone.id)
-          if (selectedZone !== '全部' && selectedZone !== zone.id) return null
-          if (zoneGames.length === 0) return null
+        {isLoadingGames ? (
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.15)',
+            // backdropFilter: 'blur(10px)', // 禁用以提升性能
+            borderRadius: '24px',
+            padding: '30px',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+          }}>
+            <SkeletonGameList />
+          </div>
+        ) : (
+          filteredGames.map(({ zone, games: zoneGames }) => {
 
           return (
             <div key={zone.id} style={{
@@ -622,18 +858,18 @@ export default function Home() {
                 gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
                 gap: '20px',
               }}>
-                {zoneGames.map((game) => (
+                {zoneGames.map((game, index) => (
                   <Link
                     key={game.id}
                     href={game.route}
                     style={{
                       textDecoration: 'none',
-                      color: 'inherit'
+                      color: 'inherit',
                     }}
                   >
                     <div style={{
                       background: 'rgba(255, 255, 255, 0.95)',
-                      backdropFilter: 'blur(10px)',
+                      // backdropFilter: 'blur(10px)', // 禁用 backdrop-filter 以提升性能
                       borderRadius: '20px',
                       padding: '25px',
                       boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15)',
@@ -733,13 +969,49 @@ export default function Home() {
                           {game.category}
                         </span>
                       </div>
+
+                      {/* 收藏按钮 */}
+                      <button
+                        onClick={(e) => toggleFavorite(game.id, e)}
+                        style={{
+                          position: 'absolute',
+                          top: '15px',
+                          right: '15px',
+                          background: favoriteGames.includes(game.id)
+                            ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)'
+                            : 'rgba(255, 255, 255, 0.8)',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '40px',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          fontSize: '20px',
+                          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                          transition: 'all 0.3s ease',
+                          zIndex: 2,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.1)'
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.25)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'scale(1)'
+                          e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)'
+                        }}
+                        title={favoriteGames.includes(game.id) ? '取消收藏' : '收藏游戏'}
+                      >
+                        {favoriteGames.includes(game.id) ? '⭐' : '☆'}
+                      </button>
                     </div>
                   </Link>
                 ))}
               </div>
             </div>
           )
-        })}
+        }))}
       </div>
 
       {/* 充值弹窗 */}
@@ -945,12 +1217,21 @@ export default function Home() {
       {showAIChat && (
         <AIChat onClose={() => setShowAIChat(false)} />
       )}
+      {showAgent && (
+        <Agent onClose={() => setShowAgent(false)} />
+      )}
       {showVideoGenerator && (
         <VideoGenerator onClose={() => setShowVideoGenerator(false)} />
+      )}
+      {showImageGenerator && (
+        <ImageGenerator onClose={() => setShowImageGenerator(false)} />
       )}
       {showLeaderboard && user && (
         <Leaderboard onClose={() => setShowLeaderboard(false)} currentUserId={user.id} />
       )}
+
+      {/* 音效控制 */}
+      <SoundControl />
     </main>
   )
 }

@@ -19,153 +19,77 @@ function PaymentSuccessContent() {
   const pollCountRef = useRef(0)
 
   useEffect(() => {
-    // 如果没有 payment_id，检查是否是直接访问或支付回调
-    if (!paymentId) {
-      // 尝试从 URL 中获取其他可能的参数
-      const checkoutId = searchParams.get('checkout_id')
-      const creemId = searchParams.get('id')
-      const sessionId = searchParams.get('session_id')
-      
-      if (checkoutId || creemId || sessionId) {
-        // 如果有 Creem 的 ID，说明是支付回调，但缺少 payment_id
-        // 尝试通过 checkout_id 查找支付记录
-        console.log('支付回调参数:', { checkoutId, creemId, sessionId })
-        
-        // 显示提示信息，让用户知道支付可能已完成
-        setPaymentStatus('pending')
-        setLoading(false)
-        setError('正在查找支付记录，请稍候...')
-        
-        // 尝试通过 checkout_id 查找支付记录
-        if (checkoutId || creemId || sessionId) {
-          // 这里可以添加通过 checkout_id 查找支付记录的逻辑
-          // 暂时显示成功页面，让用户知道支付已完成
-          setTimeout(() => {
-            setPaymentStatus('completed')
-            setError(null)
-          }, 2000)
-        }
-      } else {
-        // 没有任何参数，可能是直接访问
-        setError('缺少支付信息，请从支付页面返回')
-        setLoading(false)
-      }
+    // 直接显示支付成功页面，不进行自动检测
+    setLoading(false)
+    setPaymentStatus('completed')
+  }, [])
+
+  // 创建支付记录的函数（统一使用）
+  const handleCompletePayment = async () => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
       return
     }
 
-    // 轮询检查支付状态
-    const maxPolls = 30 // 最多轮询 30 次（60秒）
+    // 从 localStorage 获取支付信息
+    const pendingPaymentStr = localStorage.getItem('pendingPayment')
+    let amount = 100 // 默认值
+    let coins = 100 // 默认值
     
-    const checkPaymentStatus = async (forceVerify = false) => {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        router.push('/login')
-        return
-      }
-
+    if (pendingPaymentStr) {
       try {
-        // 如果轮询超过 10 次（20秒）仍未完成，尝试手动验证
-        if (pollCountRef.current >= 10 || forceVerify) {
-          console.log('尝试手动验证支付状态...')
-          const verifyResponse = await fetch('/api/payment/creem/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ paymentId }),
-          })
-
-          if (verifyResponse.ok) {
-            const verifyData = await verifyResponse.json()
-            console.log('手动验证结果:', verifyData)
-            if (verifyData.status === 'completed') {
-              setPaymentStatus('completed')
-              setLoading(false)
-              // 支付成功，等待几秒后跳转到首页
-              setTimeout(() => {
-                router.push('/')
-              }, 2000)
-              return
-            } else if (verifyData.error) {
-              setError(verifyData.error)
-            }
-          } else {
-            const errorData = await verifyResponse.json().catch(() => ({}))
-            console.error('手动验证失败:', errorData)
-            // 如果检测到 Stripe 格式或允许手动完成，显示手动完成按钮
-            if (errorData.isStripeFormat || errorData.canManualComplete) {
-              setIsStripeFormat(true)
-              setError(errorData.message || errorData.suggestion || '无法通过 API 验证，但可以手动完成支付')
-            } else {
-              setError(errorData.error || '验证失败')
-            }
-          }
+        const pendingPayment = JSON.parse(pendingPaymentStr)
+        // 检查是否在 1 小时内（避免使用过期的支付信息）
+        if (Date.now() - pendingPayment.timestamp < 3600000) {
+          amount = pendingPayment.amount
+          coins = pendingPayment.coins
         }
-
-        const response = await fetch('/api/payment/status', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ paymentId }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          console.log('支付状态:', data)
-          setPaymentStatus(data.status)
-
-          if (data.status === 'completed') {
-            setLoading(false)
-            setPaymentStatus('completed')
-            // 支付成功，等待几秒后跳转到首页
-            setTimeout(() => {
-              router.push('/')
-            }, 2000)
-          } else if (data.status === 'pending') {
-            pollCountRef.current++
-            if (pollCountRef.current < maxPolls) {
-              // 如果还在处理中，继续轮询
-              setTimeout(() => checkPaymentStatus(), 2000)
-            } else {
-              // 超时后尝试最后一次验证
-              console.warn('支付状态检查超时，尝试手动验证')
-              setLoading(false)
-              setError('支付状态检查超时，请点击"手动验证支付"按钮')
-            }
-          } else if (data.status === 'failed') {
-            setPaymentStatus('failed')
-            setLoading(false)
-          }
-        } else {
-          const errorData = await response.json().catch(() => ({}))
-          console.error('查询支付状态失败:', errorData)
-          setError(errorData.error || '查询支付状态失败')
-          if (pollCountRef.current >= 5) {
-            setLoading(false)
-          }
-        }
-      } catch (error: any) {
-        console.error('检查支付状态失败:', error)
-        setError(error.message || '检查支付状态失败')
-        // 如果出错，尝试手动验证
-        if (pollCountRef.current >= 5) {
-          setLoading(false)
-        } else {
-          pollCountRef.current++
-          setTimeout(() => checkPaymentStatus(true), 2000)
-        }
-      } finally {
-        if (pollCountRef.current === 0) {
-          setLoading(false)
-        }
+      } catch (e) {
+        console.error('解析支付信息失败:', e)
       }
     }
 
-    checkPaymentStatus()
-  }, [paymentId, router])
+    // 从 URL 参数获取 checkout ID
+    const checkoutId = searchParams.get('checkout_id') || searchParams.get('id') || undefined
+
+    try {
+      console.log('创建支付记录:', { amount, coins, checkoutId })
+      
+      const response = await fetch('/api/payment/complete-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          amount,
+          coins,
+          checkoutId,
+        }),
+      })
+
+      const data = await response.json()
+      
+      if (response.ok) {
+        console.log('支付记录创建成功:', data)
+        // 清除 localStorage 中的支付信息
+        localStorage.removeItem('pendingPayment')
+        // 跳转到游戏页面
+        router.push('/')
+      } else {
+        console.error('创建支付记录失败:', data)
+        alert('创建支付记录失败: ' + (data.error || '未知错误'))
+        // 即使失败也跳转
+        router.push('/')
+      }
+    } catch (error: any) {
+      console.error('创建支付记录出错:', error)
+      alert('创建支付记录出错: ' + error.message)
+      // 即使出错也跳转
+      router.push('/')
+    }
+  }
 
   // 手动验证支付
   const handleManualVerify = async () => {
@@ -197,9 +121,9 @@ function PaymentSuccessContent() {
         if (data.status === 'completed') {
           setPaymentStatus('completed')
           setLoading(false)
-          // 刷新页面以更新用户信息
+          // 支付成功，立即跳转到首页
           setTimeout(() => {
-            window.location.reload()
+            router.push('/')
           }, 1000)
         } else {
           setError(data.message || `支付仍在处理中 (状态: ${data.creemStatus || '未知'})`)
@@ -234,7 +158,7 @@ function PaymentSuccessContent() {
               setLoading(false)
               setTimeout(() => {
                 router.push('/')
-              }, 2000)
+              }, 1000)
               return
             } else {
               setError(forceData.error || '强制完成失败，请使用"手动完成支付"按钮')
@@ -286,10 +210,10 @@ function PaymentSuccessContent() {
       if (response.ok && data.status === 'completed') {
         setPaymentStatus('completed')
         setLoading(false)
-        // 支付成功，等待几秒后跳转到首页
+        // 支付成功，立即跳转到首页
         setTimeout(() => {
           router.push('/')
-        }, 2000)
+        }, 1000)
       } else {
         setError(data.error || '手动完成失败，请稍后再试')
         console.error('手动完成失败:', data)
@@ -330,7 +254,7 @@ function PaymentSuccessContent() {
             <p style={{ color: '#666', marginBottom: '20px' }}>金币已添加到您的账户</p>
             <p style={{ color: '#999', fontSize: '14px', marginBottom: '20px' }}>正在返回游戏...</p>
             <button
-              onClick={() => router.push('/')}
+              onClick={handleCompletePayment}
               style={{
                 padding: '12px 24px',
                 background: '#4CAF50',
@@ -342,7 +266,7 @@ function PaymentSuccessContent() {
                 fontWeight: 'bold',
               }}
             >
-              立即返回
+              返回游戏
             </button>
           </>
         ) : !paymentId ? (
@@ -354,7 +278,7 @@ function PaymentSuccessContent() {
               请检查您的账户余额，或联系客服确认
             </p>
             <button
-              onClick={() => router.push('/')}
+              onClick={handleCompletePayment}
               style={{
                 padding: '12px 24px',
                 background: '#667eea',
@@ -428,7 +352,7 @@ function PaymentSuccessContent() {
                 </button>
               )}
               <button
-                onClick={() => router.push('/')}
+                onClick={handleCompletePayment}
                 style={{
                   padding: '12px 24px',
                   background: '#667eea',

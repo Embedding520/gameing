@@ -126,31 +126,23 @@ export default function Forum({ currentUserId, currentUsername, onClose }: Forum
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(5px)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         zIndex: 1000,
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'fadeIn 0.3s ease-out',
       }}
     >
       <div
         style={{
-          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-          borderRadius: '24px',
+          background: '#ffffff',
           width: '100%',
-          maxWidth: '800px',
-          maxHeight: '90vh',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          overflow: 'hidden',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
         <div
@@ -158,34 +150,64 @@ export default function Forum({ currentUserId, currentUsername, onClose }: Forum
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '25px 30px',
+            padding: '20px 30px',
             borderBottom: '2px solid #e0e0e0',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              color: '#333',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            💬 游戏论坛
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              onClick={onClose}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                backdropFilter: 'blur(10px)',
+                color: 'white',
+                textDecoration: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                transition: 'all 0.3s ease',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
+                e.currentTarget.style.transform = 'translateX(-4px)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+                e.currentTarget.style.transform = 'translateX(0)'
+              }}
+            >
+              ← 返回
+            </button>
+            <h2
+              style={{
+                margin: 0,
+                color: 'white',
+                fontSize: '24px',
+                fontWeight: 'bold',
+              }}
+            >
+              💬 游戏论坛
+            </h2>
+          </div>
           <button
             onClick={onClose}
             style={{
-              background: 'transparent',
+              background: 'rgba(255, 255, 255, 0.2)',
               border: 'none',
-              fontSize: '28px',
+              fontSize: '24px',
               cursor: 'pointer',
-              color: '#999',
+              color: 'white',
               padding: '0',
-              width: '36px',
-              height: '36px',
+              width: '40px',
+              height: '40px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -193,20 +215,22 @@ export default function Forum({ currentUserId, currentUsername, onClose }: Forum
               transition: 'all 0.3s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)'
-              e.currentTarget.style.color = '#333'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
+              e.currentTarget.style.transform = 'rotate(90deg)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = '#999'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+              e.currentTarget.style.transform = 'rotate(0deg)'
             }}
           >
             ×
           </button>
         </div>
 
-        {/* 发布区域 */}
-        <div style={{ padding: '20px 30px', borderBottom: '2px solid #e0e0e0' }}>
+        {/* 内容区域 */}
+        <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* 发布区域 */}
+          <div style={{ padding: '20px 30px', borderBottom: '2px solid #e0e0e0', background: '#f8f9fa' }}>
           <form onSubmit={handleSubmit}>
             <textarea
               value={newPost}
@@ -284,14 +308,14 @@ export default function Forum({ currentUserId, currentUsername, onClose }: Forum
           </form>
         </div>
 
-        {/* 帖子列表 */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '20px 30px',
-          }}
-        >
+          {/* 帖子列表 */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '20px 30px',
+            }}
+          >
           {loading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
               加载中...
@@ -403,6 +427,7 @@ export default function Forum({ currentUserId, currentUsername, onClose }: Forum
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
     </div>

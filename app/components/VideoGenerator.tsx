@@ -18,6 +18,8 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
   const [apiProvider, setApiProvider] = useState<'mock' | 'sisif' | 'veo'>('mock')
   const videoRef = useRef<HTMLVideoElement>(null)
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const stopPolling = () => {
     if (pollingIntervalRef.current) {
@@ -157,6 +159,21 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
     }
   }, [])
 
+  // 组件打开时自动滚动到输入框
+  useEffect(() => {
+    if (inputRef.current && containerRef.current) {
+      // 延迟一下确保DOM已渲染
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        })
+        // 聚焦输入框
+        inputRef.current?.focus()
+      }, 100)
+    }
+  }, [])
+
   return (
     <div
       style={{
@@ -165,13 +182,14 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(5px)',
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 1000,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 1000,
         padding: '20px',
+        animation: 'fadeIn 0.3s ease-out',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -180,17 +198,39 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
         }
       }}
     >
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes slideUp {
+          from {
+            transform: translateY(30px) scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
       <div
         style={{
-          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-          borderRadius: '24px',
+          background: '#ffffff',
           width: '100%',
-          maxWidth: '900px',
-          maxHeight: '90vh',
+          maxWidth: '600px',
+          height: '80vh',
+          maxHeight: '700px',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
+          borderRadius: '20px',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          animation: 'slideUp 0.3s ease-out',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -200,34 +240,56 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '25px 30px',
-            borderBottom: '2px solid #e0e0e0',
+            padding: '18px 24px',
+            borderBottom: '1px solid #e0e0e0',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '20px 20px 0 0',
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              color: '#333',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            🎬 AI视频生成
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              }}
+            >
+              🎬
+            </div>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  color: 'white',
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                }}
+              >
+                AI 视频生成
+              </h2>
+              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '2px' }}>
+                使用AI生成视频内容
+              </div>
+            </div>
+          </div>
           <button
             onClick={() => {
               stopPolling()
               onClose()
             }}
             style={{
-              background: 'transparent',
+              background: 'rgba(255, 255, 255, 0.2)',
               border: 'none',
-              fontSize: '28px',
+              fontSize: '20px',
               cursor: 'pointer',
-              color: '#999',
+              color: 'white',
               padding: '0',
               width: '36px',
               height: '36px',
@@ -238,12 +300,12 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
               transition: 'all 0.3s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)'
-              e.currentTarget.style.color = '#333'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
+              e.currentTarget.style.transform = 'rotate(90deg) scale(1.1)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = '#999'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+              e.currentTarget.style.transform = 'rotate(0deg) scale(1)'
             }}
           >
             ×
@@ -252,13 +314,15 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
 
         {/* 内容区域 */}
         <div
+          ref={containerRef}
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '30px',
+            padding: '20px',
             display: 'flex',
             flexDirection: 'column',
             gap: '20px',
+            background: '#f8f9fa',
           }}
         >
           {/* 输入表单 */}
@@ -268,7 +332,7 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
                 style={{
                   display: 'block',
                   marginBottom: '10px',
-                  fontSize: '16px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   color: '#333',
                 }}
@@ -276,6 +340,7 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
                 视频描述
               </label>
               <textarea
+                ref={inputRef}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="描述你想要生成的视频内容，例如：一只可爱的小猫在花园里玩耍..."
@@ -283,11 +348,11 @@ export default function VideoGenerator({ onClose }: VideoGeneratorProps) {
                 required
                 style={{
                   width: '100%',
-                  minHeight: '120px',
-                  padding: '15px',
+                  minHeight: '100px',
+                  padding: '12px',
                   border: '2px solid #e0e0e0',
                   borderRadius: '12px',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'vertical',
                   outline: 'none',

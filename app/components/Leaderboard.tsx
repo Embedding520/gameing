@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 
 interface LeaderboardEntry {
   rank: number
@@ -88,31 +89,22 @@ export default function Leaderboard({ onClose, currentUserId }: LeaderboardProps
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(5px)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         zIndex: 1000,
-        padding: '20px',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <div
         style={{
-          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-          borderRadius: '24px',
+          background: '#ffffff',
           width: '100%',
-          maxWidth: '900px',
-          maxHeight: '90vh',
+          height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          overflow: 'hidden',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
         <div

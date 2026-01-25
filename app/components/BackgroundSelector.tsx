@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-type BackgroundStyle = 'style1' | 'style2' | 'style3'
+type BackgroundStyle = 'style1' | 'style2' | 'style3' | 'style4' | 'style5' | 'style6'
 
 interface BackgroundSelectorProps {
   onStyleChange?: (style: BackgroundStyle) => void
@@ -15,7 +15,7 @@ export default function BackgroundSelector({ onStyleChange }: BackgroundSelector
   useEffect(() => {
     // 从localStorage加载保存的背景风格
     const savedStyle = localStorage.getItem('backgroundStyle') as BackgroundStyle
-    if (savedStyle && ['style1', 'style2', 'style3'].includes(savedStyle)) {
+    if (savedStyle && ['style1', 'style2', 'style3', 'style4', 'style5', 'style6'].includes(savedStyle)) {
       setCurrentStyle(savedStyle)
       if (onStyleChange) {
         onStyleChange(savedStyle)
@@ -54,6 +54,27 @@ export default function BackgroundSelector({ onStyleChange }: BackgroundSelector
       gradient: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #4a90e2 100%)',
       icon: '🌊',
     },
+    {
+      id: 'style4' as BackgroundStyle,
+      name: '森林风格',
+      description: '绿色自然 + 树叶飘落',
+      gradient: 'linear-gradient(135deg, #134e5e 0%, #71b280 50%, #a8e6cf 100%)',
+      icon: '🌲',
+    },
+    {
+      id: 'style5' as BackgroundStyle,
+      name: '霓虹风格',
+      description: '赛博朋克 + 霓虹线条',
+      gradient: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)',
+      icon: '💫',
+    },
+    {
+      id: 'style6' as BackgroundStyle,
+      name: '极光风格',
+      description: '神秘极光 + 星空',
+      gradient: 'linear-gradient(135deg, #000428 0%, #004e92 50%, #009ffd 100%)',
+      icon: '🌌',
+    },
   ]
 
   return (
@@ -64,7 +85,7 @@ export default function BackgroundSelector({ onStyleChange }: BackgroundSelector
         style={{
           position: 'fixed',
           top: '20px',
-          left: '20px',
+          right: '20px',
           padding: '12px 20px',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           color: 'white',

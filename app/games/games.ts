@@ -78,6 +78,17 @@ export const GAMES: GameInfo[] = [
     category: '休闲',
     zone: '休闲区',
   },
+  {
+    id: 'food-wheel',
+    name: '今天吃什么',
+    description: '转盘决定今天中午吃什么，根据人数智能调整概率！',
+    icon: '🍽️',
+    route: '/games/food-wheel',
+    color: 'linear-gradient(135deg, #FF6B6B 0%, #4ECDC4 100%)',
+    difficulty: '简单',
+    category: '休闲',
+    zone: '休闲区',
+  },
   
   // 战争策略
   {

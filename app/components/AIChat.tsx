@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -10,6 +11,40 @@ interface Message {
 
 interface AIChatProps {
   onClose: () => void
+}
+
+// 简洁的加载动画
+function TypingAnimation() {
+  return (
+    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', padding: '2px 0' }}>
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: '#667eea',
+            animation: `typing 1.2s infinite`,
+            animationDelay: `${i * 0.2}s`,
+            opacity: 0.6,
+          }}
+        />
+      ))}
+      <style jsx>{`
+        @keyframes typing {
+          0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.4;
+          }
+          30% {
+            transform: translateY(-8px);
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </div>
+  )
 }
 
 export default function AIChat({ onClose }: AIChatProps) {
@@ -139,29 +174,64 @@ export default function AIChat({ onClose }: AIChatProps) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'rgba(0, 0, 0, 0.6)',
-        backdropFilter: 'blur(5px)',
+        background: 'rgba(0, 0, 0, 0.5)',
+        backdropFilter: 'blur(4px)',
+        zIndex: 1000,
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 1000,
         padding: '20px',
+        animation: 'fadeIn 0.3s ease-out',
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) {
+          onClose()
+        }
       }}
     >
+      <style jsx>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        @keyframes slideUp {
+          from {
+            transform: translateY(30px) scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+          }
+        }
+        @keyframes messageSlide {
+          from {
+            transform: translateX(-10px);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
       <div
         style={{
-          background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-          borderRadius: '24px',
+          background: '#ffffff',
           width: '100%',
-          maxWidth: '800px',
-          maxHeight: '90vh',
+          maxWidth: '600px',
+          height: '80vh',
+          maxHeight: '700px',
           display: 'flex',
           flexDirection: 'column',
+          overflow: 'hidden',
+          borderRadius: '20px',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-          border: '1px solid rgba(255, 255, 255, 0.5)',
+          animation: 'slideUp 0.3s ease-out',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -171,31 +241,53 @@ export default function AIChat({ onClose }: AIChatProps) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '25px 30px',
-            borderBottom: '2px solid #e0e0e0',
+            padding: '18px 24px',
+            borderBottom: '1px solid #e0e0e0',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            borderRadius: '20px 20px 0 0',
           }}
         >
-          <h2
-            style={{
-              margin: 0,
-              color: '#333',
-              fontSize: '28px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            🤖 AI助手
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+              }}
+            >
+              🤖
+            </div>
+            <div>
+              <h2
+                style={{
+                  margin: 0,
+                  color: 'white',
+                  fontSize: '20px',
+                  fontWeight: 'bold',
+                }}
+              >
+                AI 智能助手
+              </h2>
+              <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.85)', marginTop: '2px' }}>
+                随时为你解答问题
+              </div>
+            </div>
+          </div>
           <button
             onClick={onClose}
             style={{
-              background: 'transparent',
+              background: 'rgba(255, 255, 255, 0.2)',
               border: 'none',
-              fontSize: '28px',
+              fontSize: '20px',
               cursor: 'pointer',
-              color: '#999',
+              color: 'white',
               padding: '0',
               width: '36px',
               height: '36px',
@@ -206,12 +298,12 @@ export default function AIChat({ onClose }: AIChatProps) {
               transition: 'all 0.3s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(0, 0, 0, 0.1)'
-              e.currentTarget.style.color = '#333'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)'
+              e.currentTarget.style.transform = 'rotate(90deg) scale(1.1)'
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = '#999'
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'
+              e.currentTarget.style.transform = 'rotate(0deg) scale(1)'
             }}
           >
             ×
@@ -223,10 +315,11 @@ export default function AIChat({ onClose }: AIChatProps) {
           style={{
             flex: 1,
             overflowY: 'auto',
-            padding: '20px 30px',
+            padding: '20px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
+            background: '#f8f9fa',
           }}
         >
           {messages.map((message, index) => (
@@ -236,21 +329,23 @@ export default function AIChat({ onClose }: AIChatProps) {
                 display: 'flex',
                 justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
                 alignItems: 'flex-start',
-                gap: '12px',
+                gap: '14px',
+                animation: 'messageSlide 0.3s ease-out',
               }}
             >
               {message.role === 'assistant' && (
                 <div
                   style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px',
+                    fontSize: '18px',
                     flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.25)',
                   }}
                 >
                   🤖
@@ -258,18 +353,22 @@ export default function AIChat({ onClose }: AIChatProps) {
               )}
               <div
                 style={{
-                  maxWidth: '70%',
+                  maxWidth: '80%',
                   background:
                     message.role === 'user'
                       ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                      : '#ffffff',
                   color: message.role === 'user' ? 'white' : '#333',
                   padding: '12px 16px',
-                  borderRadius: '16px',
-                  fontSize: '15px',
+                  borderRadius: message.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  fontSize: '14px',
                   lineHeight: '1.6',
                   wordBreak: 'break-word',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                  boxShadow: message.role === 'user'
+                    ? '0 2px 8px rgba(102, 126, 234, 0.25)'
+                    : '0 1px 4px rgba(0, 0, 0, 0.08)',
+                  border: message.role === 'assistant' ? '1px solid rgba(102, 126, 234, 0.1)' : 'none',
+                  position: 'relative',
                 }}
               >
                 <div style={{ whiteSpace: 'pre-wrap' }}>{message.content}</div>
@@ -319,15 +418,16 @@ export default function AIChat({ onClose }: AIChatProps) {
               {message.role === 'user' && (
                 <div
                   style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px',
+                    fontSize: '18px',
                     flexShrink: 0,
+                    boxShadow: '0 2px 8px rgba(246, 211, 101, 0.25)',
                   }}
                 >
                   👤
@@ -346,45 +446,31 @@ export default function AIChat({ onClose }: AIChatProps) {
             >
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '20px',
+                  fontSize: '18px',
                   flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(102, 126, 234, 0.25)',
                 }}
               >
                 🤖
               </div>
               <div
                 style={{
-                  background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                  background: '#ffffff',
                   padding: '12px 16px',
-                  borderRadius: '16px',
-                  fontSize: '15px',
+                  borderRadius: '16px 16px 16px 4px',
+                  fontSize: '14px',
+                  border: '1px solid rgba(102, 126, 234, 0.1)',
+                  boxShadow: '0 1px 4px rgba(0, 0, 0, 0.08)',
                 }}
               >
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span style={{ 
-                    opacity: 0.4,
-                    fontSize: '12px',
-                  }}>正在思考</span>
-                  <span style={{ 
-                    opacity: 0.3,
-                    fontSize: '8px',
-                  }}>●</span>
-                  <span style={{ 
-                    opacity: 0.5,
-                    fontSize: '8px',
-                  }}>●</span>
-                  <span style={{ 
-                    opacity: 0.7,
-                    fontSize: '8px',
-                  }}>●</span>
-                </div>
+                <TypingAnimation />
               </div>
             </div>
           )}
@@ -394,12 +480,14 @@ export default function AIChat({ onClose }: AIChatProps) {
         {/* 输入区域 */}
         <div
           style={{
-            padding: '20px 30px',
-            borderTop: '2px solid #e0e0e0',
+            padding: '16px 20px',
+            borderTop: '1px solid #e0e0e0',
+            background: '#ffffff',
+            borderRadius: '0 0 20px 20px',
           }}
         >
           <form onSubmit={handleSubmit}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -413,24 +501,27 @@ export default function AIChat({ onClose }: AIChatProps) {
                 }}
                 style={{
                   flex: 1,
-                  minHeight: '60px',
-                  maxHeight: '120px',
+                  minHeight: '50px',
+                  maxHeight: '100px',
                   padding: '12px 16px',
-                  border: '2px solid #e0e0e0',
+                  border: '1px solid #e0e0e0',
                   borderRadius: '12px',
-                  fontSize: '15px',
+                  fontSize: '14px',
                   fontFamily: 'inherit',
                   resize: 'none',
                   outline: 'none',
                   transition: 'all 0.3s ease',
+                  background: '#f8f9fa',
                 }}
                 onFocus={(e) => {
                   e.currentTarget.style.borderColor = '#667eea'
                   e.currentTarget.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                  e.currentTarget.style.background = '#ffffff'
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = '#e0e0e0'
                   e.currentTarget.style.boxShadow = 'none'
+                  e.currentTarget.style.background = '#f8f9fa'
                 }}
               />
               <button
@@ -441,31 +532,31 @@ export default function AIChat({ onClose }: AIChatProps) {
                   background:
                     input.trim() && !loading
                       ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                      : 'linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%)',
+                      : '#e0e0e0',
                   color: 'white',
                   border: 'none',
                   borderRadius: '12px',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  fontWeight: '600',
                   cursor: input.trim() && !loading ? 'pointer' : 'not-allowed',
                   boxShadow:
                     input.trim() && !loading
-                      ? '0 4px 15px rgba(102, 126, 234, 0.4)'
+                      ? '0 4px 12px rgba(102, 126, 234, 0.3)'
                       : 'none',
                   transition: 'all 0.3s ease',
                   opacity: input.trim() && !loading ? 1 : 0.6,
-                  height: '60px',
+                  height: '50px',
                 }}
                 onMouseEnter={(e) => {
                   if (input.trim() && !loading) {
                     e.currentTarget.style.transform = 'translateY(-2px)'
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)'
+                    e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)'
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (input.trim() && !loading) {
                     e.currentTarget.style.transform = 'translateY(0)'
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)'
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)'
                   }
                 }}
               >
@@ -477,13 +568,13 @@ export default function AIChat({ onClose }: AIChatProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginTop: '8px',
+                marginTop: '6px',
               }}
             >
-              <span style={{ fontSize: '12px', color: '#999' }}>
+              <span style={{ fontSize: '11px', color: '#999' }}>
                 按 Enter 发送，Shift + Enter 换行
               </span>
-              <span style={{ fontSize: '12px', color: '#999' }}>
+              <span style={{ fontSize: '11px', color: '#999' }}>
                 {input.length}/2000
               </span>
             </div>

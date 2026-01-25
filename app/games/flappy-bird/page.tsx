@@ -11,6 +11,13 @@ export default function FlappyBirdGame() {
   const [gameOver, setGameOver] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
 
+  const gameStateRef = useRef<{
+    bird: { x: number; y: number; width: number; height: number; velocity: number }
+    pipes: Array<{ x: number; top: number; bottom: number; width: number; passed?: boolean }>
+    frameCount: number
+    animationId: number | null
+  } | null>(null)
+
   useEffect(() => {
     if (!canvasRef.current) return
 
@@ -29,12 +36,19 @@ export default function FlappyBirdGame() {
     canvas.width = 400
     canvas.height = 600
 
-    let bird = { x: 50, y: 250, width: 30, height: 30, velocity: 0 }
-    let pipes: Array<{ x: number; top: number; bottom: number; width: number }> = []
-    let pipeGap = 150
-    let pipeWidth = 60
-    let frameCount = 0
-    let animationId: number
+    // 初始化游戏状态
+    if (!gameStateRef.current) {
+      gameStateRef.current = {
+        bird: { x: 50, y: 250, width: 30, height: 30, velocity: 0 },
+        pipes: [],
+        frameCount: 0,
+        animationId: null
+      }
+    }
+
+    const gameState = gameStateRef.current
+    const pipeGap = 150
+    const pipeWidth = 60
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -49,14 +63,14 @@ export default function FlappyBirdGame() {
 
       // 管道
       ctx.fillStyle = '#228B22'
-      pipes.forEach(pipe => {
+      gameState.pipes.forEach(pipe => {
         ctx.fillRect(pipe.x, 0, pipe.width, pipe.top)
         ctx.fillRect(pipe.x, pipe.bottom, pipe.width, canvas.height - pipe.bottom)
       })
 
       // 小鸟
       ctx.fillStyle = '#FFD700'
-      ctx.fillRect(bird.x, bird.y, bird.width, bird.height)
+      ctx.fillRect(gameState.bird.x, gameState.bird.y, gameState.bird.width, gameState.bird.height)
 
       // 分数
       ctx.fillStyle = '#000'
@@ -67,14 +81,15 @@ export default function FlappyBirdGame() {
     const update = () => {
       if (isPaused) return
 
-      frameCount++
-      bird.velocity += 0.5
-      bird.y += bird.velocity
+      gameState.frameCount++
+      // 进一步降低重力加速度，让下降更慢
+      gameState.bird.velocity += 0.15
+      gameState.bird.y += gameState.bird.velocity
 
       // 生成管道
-      if (frameCount % 100 === 0) {
+      if (gameState.frameCount % 150 === 0) {
         const topHeight = Math.random() * (canvas.height - pipeGap - 100) + 50
-        pipes.push({
+        gameState.pipes.push({
           x: canvas.width,
           top: topHeight,
           bottom: topHeight + pipeGap,
@@ -83,57 +98,100 @@ export default function FlappyBirdGame() {
       }
 
       // 移动管道
-      pipes = pipes.map(pipe => ({ ...pipe, x: pipe.x - 2 })).filter(pipe => pipe.x + pipe.width > 0)
+      gameState.pipes = gameState.pipes
+        .map(pipe => ({ ...pipe, x: pipe.x - 1.2 }))
+        .filter(pipe => pipe.x + pipe.width > 0)
 
       // 碰撞检测
-      if (bird.y + bird.height > canvas.height - 50 || bird.y < 0) {
+      if (gameState.bird.y + gameState.bird.height > canvas.height - 50 || gameState.bird.y < 0) {
         setGameOver(true)
         return
       }
 
-      pipes.forEach((pipe, index) => {
-        if (bird.x < pipe.x + pipe.width &&
-            bird.x + bird.width > pipe.x &&
-            (bird.y < pipe.top || bird.y + bird.height > pipe.bottom)) {
+      gameState.pipes.forEach((pipe) => {
+        if (gameState.bird.x < pipe.x + pipe.width &&
+            gameState.bird.x + gameState.bird.width > pipe.x &&
+            (gameState.bird.y < pipe.top || gameState.bird.y + gameState.bird.height > pipe.bottom)) {
           setGameOver(true)
         }
-        const pipeWithPassed = pipe as any
-        if (pipe.x + pipe.width < bird.x && !pipeWithPassed.passed) {
+        if (pipe.x + pipe.width < gameState.bird.x && !pipe.passed) {
           setScore((prev: number) => prev + 1)
-          pipeWithPassed.passed = true
+          pipe.passed = true
         }
       })
     }
 
     const gameLoop = () => {
-      if (gameOver || isPaused) return
+      if (gameOver || isPaused) {
+        if (gameState.animationId) {
+          cancelAnimationFrame(gameState.animationId)
+          gameState.animationId = null
+        }
+        return
+      }
       update()
       draw()
-      animationId = requestAnimationFrame(gameLoop)
+      gameState.animationId = requestAnimationFrame(gameLoop)
     }
 
     gameLoop()
 
     return () => {
-      if (animationId) {
-        cancelAnimationFrame(animationId)
+      if (gameState.animationId) {
+        cancelAnimationFrame(gameState.animationId)
+        gameState.animationId = null
       }
     }
+  }, [gameOver, isPaused, score])
 
-    const handleClick = () => {
-      if (!gameOver) {
-        bird.velocity = -8
+  // 处理点击事件 - 使用独立的 useEffect 确保事件监听器正确绑定
+  useEffect(() => {
+    if (!canvasRef.current) return
+    if (gameOver) return
+
+    const canvas = canvasRef.current
+
+    const handleClick = (e: MouseEvent) => {
+      e.preventDefault()
+      if (!gameStateRef.current || gameOver || isPaused) return
+      
+      // 点击时让小鸟向上飞
+      gameStateRef.current.bird.velocity = -5
+    }
+
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault()
+        if (!gameStateRef.current || gameOver || isPaused) return
+        
+        // 空格键也让小鸟向上飞
+        gameStateRef.current.bird.velocity = -5
       }
     }
 
     canvas.addEventListener('click', handleClick)
-    return () => canvas.removeEventListener('click', handleClick)
-  }, [gameOver, isPaused, score])
+    window.addEventListener('keydown', handleKeyPress)
+
+    return () => {
+      canvas.removeEventListener('click', handleClick)
+      window.removeEventListener('keydown', handleKeyPress)
+    }
+  }, [gameOver, isPaused])
 
   const restart = () => {
     setScore(0)
     setGameOver(false)
     setIsPaused(false)
+    // 重置游戏状态
+    if (gameStateRef.current) {
+      gameStateRef.current.bird = { x: 50, y: 250, width: 30, height: 30, velocity: 0 }
+      gameStateRef.current.pipes = []
+      gameStateRef.current.frameCount = 0
+      if (gameStateRef.current.animationId) {
+        cancelAnimationFrame(gameStateRef.current.animationId)
+        gameStateRef.current.animationId = null
+      }
+    }
   }
 
   return (

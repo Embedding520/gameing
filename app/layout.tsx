@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import './components/BackgroundStyles.css'
+import ClientLayout from './components/ClientLayout'
 
 export const metadata: Metadata = {
   title: '娱乐中心',
@@ -14,7 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body>
+        <ClientLayout>{children}</ClientLayout>
+      </body>
     </html>
   )
 }
